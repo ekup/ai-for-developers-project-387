@@ -1,0 +1,22 @@
+# Go
+backend/bin/
+backend/data/
+*.db
+
+# Node / фронтенд
+frontend/node_modules/
+frontend/dist/
+frontend/coverage/
+
+# Node / контракт API
+api/node_modules/
+
+# Окружение
+.env
+.env.local
+.env.*.local
+
+# IDE и ОС
+.idea/
+.vscode/
+.DS_Store
