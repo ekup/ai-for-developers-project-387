@@ -141,6 +141,59 @@ GitHub Actions (`.github/workflows/ci.yml`) на каждый push и pull reque
 - дымовой тест: приложение собирается, поднимается и отвечает на `/health`;
 - Docker: образ собирается, контейнер стартует и слушает порт из `PORT`.
 
+## Работа агентов OpenCode
+
+Пять воркфлоу запускают агента OpenCode. Модель у всех одна — `opencode-go/deepseek-v4.1-flash`
+(провайдер `opencode-go` по подписке OpenCode Go, секрет `OPENCODE_API_KEY`). Прогоны — в разделе
+[Actions](https://github.com/ekup/ai-for-developers-project-387/actions); в таблице ниже — прямые
+ссылки на конкретный воркфлоу.
+
+| Воркфлоу                                                             | Событие                                                                                        | Модель                             | Назначение                                                      | Где смотреть прогоны                                                                                                |
+| -------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- | ---------------------------------- | --------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| [`opencode.yml`](.github/workflows/opencode.yml)                     | комментарий с `/oc` или `/opencode` (`issue_comment`, `pull_request_review_comment`)           | `opencode-go/deepseek-v4.1-flash`  | правит код по задаче из комментария, коммитит и открывает PR    | [Actions → opencode](https://github.com/ekup/ai-for-developers-project-387/actions/workflows/opencode.yml)             |
+| [`opencode-review.yml`](.github/workflows/opencode-review.yml)       | `pull_request`: opened, synchronize, reopened, ready_for_review                                | `opencode-go/deepseek-v4.1-flash`  | ревью диффа PR и предложения по улучшениям                      | [Actions → opencode-review](https://github.com/ekup/ai-for-developers-project-387/actions/workflows/opencode-review.yml) |
+| [`opencode-triage.yml`](.github/workflows/opencode-triage.yml)       | `issues`: opened (автор старше 30 дней)                                                        | `opencode-go/deepseek-v4.1-flash`  | подсказки по issue: ссылки на доки, обработка ошибок            | [Actions → Issue Triage](https://github.com/ekup/ai-for-developers-project-387/actions/workflows/opencode-triage.yml)     |
+| [`opencode-scheduled.yml`](.github/workflows/opencode-scheduled.yml) | расписание: понедельник 09:00 UTC                                                              | `opencode-go/deepseek-v4.1-flash`  | обзор `TODO`/`FIXME`/`HACK` и заведение issue с отчётом         | [Actions → Scheduled OpenCode Task](https://github.com/ekup/ai-for-developers-project-387/actions/workflows/opencode-scheduled.yml) |
+| [`opencode-workflow-dispatch.yml`](.github/workflows/opencode-workflow-dispatch.yml) | `workflow_dispatch`: ручной запуск                                             | `opencode-go/deepseek-v4.1-flash` (переопределяется полем `model`) | произвольная задача из поля `prompt`            | [Actions → Manual OpenCode Task](https://github.com/ekup/ai-for-developers-project-387/actions/workflows/opencode-workflow-dispatch.yml) |
+
+### Команды вызова и доступ
+
+- Агента зовут комментарием, начинающимся с `/oc` или `/opencode` (либо этими же словами через пробел в середине текста). Набор задан явно через `mentions: "/oc,/opencode"` в `opencode.yml` — это дефолт экшена, он оставлен, чтобы не ломать уже написанные команды.
+- Воркфлоу не срабатывает на каждый комментарий подряд: без команды в теле job пропускается (в списке прогонов это видно как `skipped`).
+- События от ботов и от самого приложения OpenCode (его логины заканчиваются на `[bot]`) отсекаются условием `!endsWith(github.actor, '[bot]')` и `user.type != 'Bot'` во всех пяти воркфлоу.
+- Репозиторий публичный, поэтому звать агента командой могут только `OWNER`, `MEMBER` и `COLLABORATOR` (проверка `author_association`). Ручной запуск (`workflow_dispatch`) и так доступен лишь пользователям с правом записи, в нём дополнительно проверяется, что запуск идёт не из форка.
+
+### Права
+
+`permissions` объявлены отдельно в каждом воркфлоу, `write` — только там, где агент создаёт коммиты, задачи или PR:
+
+| Воркфлоу                        | `permissions`                                                              | Почему так                                                                                          |
+| ------------------------------- | -------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| `opencode.yml`                  | `id-token: write`, `contents: read`, `pull-requests: write`                | коммиты и PR создаёт токен приложения OpenCode (обмен OIDC); `pull-requests: write` нужен шагу «Нормализовать заголовок PR» |
+| `opencode-review.yml`           | `contents: read`, `pull-requests: write`                                   | `use_github_token: true` — OIDC не нужен; комментарии в разговоре PR требуют прав именно на `pull-requests` |
+| `opencode-triage.yml`           | `id-token: write`, `contents: read`                                        | комментарий создаёт токен приложения (OIDC), воркфлоу на запись ничего не просит                    |
+| `opencode-scheduled.yml`        | `contents: read`, `issues: write`                                          | задача заводит issue через `gh` с `GITHUB_TOKEN`; коммитов и PR нет                                  |
+| `opencode-workflow-dispatch.yml`| `contents: write`, `pull-requests: write`, `issues: write`                 | произвольная задача может дойти до коммита, PR и issue                                              |
+
+### Share
+
+Репозиторий публичный, и для публичных репозиториев экшен по умолчанию расшаривает сессию агента (`share` = true). В первых PR это уже проявилось: в телах #4, #5 и #7 оставались публичные ссылки вида `opencode.ai/s/...`. Решение — **share выключен** (`share: false` во всех воркфлоу): сессии агента наружу не публикуются, чтобы не выносить промпты и содержимое репозитория. Ссылка на прогон Actions в комментарии при этом остаётся.
+
+### Самооценка
+
+Что получилось с первого прохода:
+
+- Триаж issue отработал на #2 и #6 без замечаний.
+- Issue #6 «Отмена бронирования» → PR #7 (`feat: отмена записи владельцем`) смержен без переработок.
+- Обзор `TODO`/`FIXME`/`HACK` в ручном прогоне сразу дал issue #11 со структурированным отчётом.
+
+Где потребовались итерации:
+
+- Issue #3 «Не хочу созваниваться в выходные»: первый PR #4 закрыт, работу пришлось переделать — приняли только PR #5.
+- `opencode-review` падал с 403 при попытке комментировать PR, пока в воркфлоу не выдали `pull-requests: write` (коммит `900b9e9`).
+- «Manual OpenCode Task» один раз завис на 34 минуты на запросе разрешения (агент искал креды `gh`), пока не добавили `timeout-minutes` и проброс `GITHUB_TOKEN` (коммит `5fc73da`).
+- Коммиты агента сначала не соответствовали Conventional Commits — добавили правило в `AGENTS.md` и шаг «Нормализовать заголовок PR» (коммиты `3a5813e`, `b9d76e2`).
+
 ---
 
 <details>

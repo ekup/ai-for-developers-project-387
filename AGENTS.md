@@ -35,6 +35,7 @@
 - SQLite — `modernc.org/sqlite` (чистый Go, без cgo), сборка с `CGO_ENABLED=0`. Соединение ограничено `MaxOpenConns(1)`.
 - `.github/workflows/hexlet-check.yml` автогенерируется: **не удалять/не редактировать**, репозиторий не переименовывать — иначе автотесты Хекслета сломаются. Также не трогать `.github/workflows/README.md`.
 - В CI у агента нет интерактивного клиента, поэтому **любой запрос разрешения opencode (`ask`) — это бесконечное ожидание**: так завис «Manual OpenCode Task» #38730818410 на 34 минуты (агент полез искать креды `gh` в `~/.config/gh/hosts.yml`, потому что токена не было). Поэтому: `opencode.json` в корне разрешает внешний каталог `~/.config/gh/*`; в `opencode-scheduled.yml` и `opencode-workflow-dispatch.yml` пробрасываются `GITHUB_TOKEN` и `use_github_token: true` (как в `opencode-review.yml`); у всех `opencode-*.yml` стоит `timeout-minutes` — 30 у `opencode.yml`, 15 у остальных, чтобы такое ожидание падало, а не висело до дефолтных 6 часов.
+- У воркфлоу агентов (`opencode*.yml`) есть условие, отсекающее события от ботов и от самого приложения OpenCode (логины на `[bot]`); в публичном репозитории звать агента командой могут только `OWNER`/`MEMBER`/`COLLABORATOR`. Команды заданы явно (`mentions: "/oc,/opencode"`), `share: false` не даёт публиковать сессии, а `permissions` выданы по воркфлоу и на запись — только там, где создаются коммиты, задачи или PR. Таблица воркфлоу, прав и решение по share — в README.
 
 ## Релизы
 

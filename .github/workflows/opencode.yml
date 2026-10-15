@@ -8,20 +8,31 @@ on:
 
 jobs:
   opencode:
+    # Триггерим только команды, только от людей и только от тех, у кого есть
+    # права в репозитории. События от ботов и от самого приложения OpenCode
+    # (его логин заканчивается на `[bot]`) отсекаются, а звать агента в
+    # публичном репозитории могут лишь владелец, участники и коллабораторы.
     if: |
-      contains(github.event.comment.body, ' /oc') ||
-      startsWith(github.event.comment.body, '/oc') ||
-      contains(github.event.comment.body, ' /opencode') ||
-      startsWith(github.event.comment.body, '/opencode')
+      !endsWith(github.actor, '[bot]') &&
+      github.event.comment.user.type != 'Bot' &&
+      contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association) &&
+      (
+        contains(github.event.comment.body, ' /oc') ||
+        startsWith(github.event.comment.body, '/oc') ||
+        contains(github.event.comment.body, ' /opencode') ||
+        startsWith(github.event.comment.body, '/opencode')
+      )
     runs-on: ubuntu-latest
     # Задачи из комментариев бывают длиннее триггерных: агент правит код,
     # гоняет тесты и коммитит, поэтому запас больше (см. AGENTS.md).
     timeout-minutes: 30
+    # Коммиты и PR создаёт токен приложения OpenCode (обмен OIDC → app token),
+    # поэтому на запись воркфлоу просит только pull-requests — для шага
+    # «Нормализовать заголовок PR», который работает с GITHUB_TOKEN.
     permissions:
       id-token: write
       contents: read
       pull-requests: write
-      issues: read
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
@@ -76,6 +87,14 @@ jobs:
           # (opencode.ai/inference/go/v1), а не через кредиты Console,
           # поэтому ключ тот же — OPENCODE_API_KEY.
           model: opencode-go/deepseek-v4.1-flash
+          # Набор команд задан явно и совпадает с дефолтом экшена
+          # («/opencode,/oc»), чтобы старые комментарии с /oc продолжали
+          # работать, а список был виден в воркфлоу, а не только в README.
+          mentions: "/oc,/opencode"
+          # Репозиторий публичный, а для публичных репозиториев экшен по
+          # умолчанию расшаривает сессию. Выключаем, чтобы промпты и код
+          # не публиковались на opencode.ai (см. README).
+          share: false
 
       - name: Нормализовать заголовок PR
         env:

@@ -6,15 +6,20 @@ on:
 
 jobs:
   opencode:
+    # У schedule нет пользователя-инициатора, поэтому страхуемся от запуска в
+    # форке и от бот-аккаунтов (см. README).
+    if: |
+      github.repository == 'ekup/ai-for-developers-project-387' &&
+      !endsWith(github.actor, '[bot]')
     runs-on: ubuntu-latest
     # Страховка от зависания: если агент встанет на запросе разрешения,
     # которого в Actions никто не подтвердит, джоба упадёт по таймауту,
     # а не будет ждать дефолтные 6 часов (см. AGENTS.md).
     timeout-minutes: 15
+    # Задача заводит issue через gh с GITHUB_TOKEN (use_github_token: true),
+    # поэтому OIDC не нужен, а запись требуется только в issues.
     permissions:
-      id-token: write
-      contents: write
-      pull-requests: write
+      contents: read
       issues: write
     steps:
       - name: Checkout repository
@@ -33,6 +38,8 @@ jobs:
         with:
           model: opencode-go/deepseek-v4.1-flash
           use_github_token: true
+          # Публичный репозиторий: не расшариваем сессию агента (см. README).
+          share: false
           prompt: |
             Scan the codebase for TODO, FIXME, and HACK comments.
             Group findings by file and severity.

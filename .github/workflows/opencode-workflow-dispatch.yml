@@ -13,13 +13,19 @@ on:
         type: string
 jobs:
   opencode:
+    # Запуск доступен только пользователям с правом записи в репозиторий; от
+    # ботов и от форков страхуемся явно (см. README).
+    if: |
+      github.repository == 'ekup/ai-for-developers-project-387' &&
+      !endsWith(github.actor, '[bot]')
     runs-on: ubuntu-latest
     # Страховка от зависания: если агент встанет на запросе разрешения,
     # которого в Actions никто не подтвердит, джоба упадёт по таймауту,
     # а не будет ждать дефолтные 6 часов (см. AGENTS.md).
     timeout-minutes: 15
+    # Произвольная задача может дойти до коммита, PR и issue, поэтому write
+    # нужен во всех трёх областях. OIDC не нужен: работаем через GITHUB_TOKEN.
     permissions:
-      id-token: write
       contents: write
       pull-requests: write
       issues: write
@@ -39,4 +45,6 @@ jobs:
         with:
           model: ${{ inputs.model }}
           use_github_token: true
+          # Публичный репозиторий: не расшариваем сессию агента (см. README).
+          share: false
           prompt: ${{ inputs.prompt }}

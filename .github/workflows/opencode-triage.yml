@@ -6,15 +6,22 @@ on:
 
 jobs:
   triage:
+    # Пропускаем issues от ботов и от самого приложения OpenCode, чтобы агент
+    # не отвечал на собственные служебные события.
+    if: |
+      !endsWith(github.actor, '[bot]') &&
+      github.event.issue.user.type != 'Bot' &&
+      !endsWith(github.event.issue.user.login, '[bot]')
     runs-on: ubuntu-latest
     # Страховка от зависания на запросе разрешения, которого в Actions никто
     # не подтвердит (см. AGENTS.md): падаем по таймауту, а не ждём 6 часов.
     timeout-minutes: 15
+    # Триаж только комментирует issue, а комментарий создаёт токен приложения
+    # OpenCode (обмен OIDC), поэтому на запись воркфлоу ничего не просит —
+    # read нужен лишь для checkout.
     permissions:
       id-token: write
-      contents: write
-      pull-requests: write
-      issues: write
+      contents: read
     steps:
       - name: Check account age
         id: check
@@ -40,6 +47,8 @@ jobs:
           OPENCODE_API_KEY: ${{ secrets.OPENCODE_API_KEY }}
         with:
           model: opencode-go/deepseek-v4.1-flash
+          # Публичный репозиторий: не расшариваем сессию агента (см. README).
+          share: false
           prompt: |
             Review this issue. If there's a clear fix or relevant docs:
             - Provide documentation links
