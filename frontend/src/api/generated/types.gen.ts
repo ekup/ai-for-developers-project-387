@@ -194,6 +194,45 @@ export type BookingsWindowResponses = {
 
 export type BookingsWindowResponse = BookingsWindowResponses[keyof BookingsWindowResponses]
 
+export type BookingsRemoveData = {
+  body?: never
+  path: {
+    id: number
+  }
+  query?: never
+  url: '/api/bookings/{id}'
+}
+
+export type BookingsRemoveErrors = {
+  /**
+   * The server could not understand the request due to invalid syntax.
+   */
+  400: ApiErrorBody
+  /**
+   * The server cannot find the requested resource.
+   */
+  404: ApiErrorBody
+  /**
+   * The request conflicts with the current state of the server.
+   */
+  409: ApiErrorBody
+  /**
+   * Client error
+   */
+  422: ApiErrorBody
+}
+
+export type BookingsRemoveError = BookingsRemoveErrors[keyof BookingsRemoveErrors]
+
+export type BookingsRemoveResponses = {
+  /**
+   * Успешное удаление без тела.
+   */
+  204: void
+}
+
+export type BookingsRemoveResponse = BookingsRemoveResponses[keyof BookingsRemoveResponses]
+
 export type EventTypesListData = {
   body?: never
   path?: never

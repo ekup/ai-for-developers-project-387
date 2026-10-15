@@ -103,6 +103,28 @@ func CreateBooking(ctx context.Context, db *sql.DB, p CreateBookingParams, now t
 	}, nil
 }
 
+// DeleteBooking жёстко удаляет запись по идентификатору. Отменённая запись
+// перестаёт занимать слот и пропадает из предстоящих встреч. Если записи с
+// таким идентификатором нет, возвращается ErrNotFound.
+//
+// Жёсткое удаление выбрано в docs/adr/0004.
+func DeleteBooking(ctx context.Context, db *sql.DB, id int64) error {
+	res, err := db.ExecContext(ctx, `DELETE FROM bookings WHERE id = ?`, id)
+	if err != nil {
+		return fmt.Errorf("store: удалить запись: %w", err)
+	}
+
+	changed, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("store: проверить результат удаления записи: %w", err)
+	}
+	if changed == 0 {
+		return ErrNotFound
+	}
+
+	return nil
+}
+
 // UpcomingBookings возвращает предстоящие (начало не раньше now) записи всех
 // типов событий вместе с их типами, отсортированные по времени начала по
 // возрастанию. Записи мягко удалённых типов событий остаются видимыми — фильтр

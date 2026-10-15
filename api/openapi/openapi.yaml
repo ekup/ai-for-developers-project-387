@@ -104,6 +104,46 @@ paths:
                 $ref: '#/components/schemas/BookingWindow'
       tags:
         - Записи
+  /api/bookings/{id}:
+    delete:
+      operationId: Bookings_remove
+      description: Отменить запись (владелец).
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int32
+      responses:
+        '204':
+          description: Успешное удаление без тела.
+        '400':
+          description: The server could not understand the request due to invalid syntax.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorBody'
+        '404':
+          description: The server cannot find the requested resource.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorBody'
+        '409':
+          description: The request conflicts with the current state of the server.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorBody'
+        '422':
+          description: Client error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorBody'
+      tags:
+        - Записи
   /api/event-types:
     get:
       operationId: EventTypes_list

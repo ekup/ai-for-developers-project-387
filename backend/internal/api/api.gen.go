@@ -122,6 +122,9 @@ type ServerInterface interface {
 	// (GET /api/bookings/window)
 	BookingsWindow(w http.ResponseWriter, r *http.Request)
 
+	// (DELETE /api/bookings/{id})
+	BookingsRemove(w http.ResponseWriter, r *http.Request, id int32)
+
 	// (GET /api/event-types)
 	EventTypesList(w http.ResponseWriter, r *http.Request)
 
@@ -154,6 +157,11 @@ func (_ Unimplemented) BookingsUpcoming(w http.ResponseWriter, r *http.Request) 
 
 // (GET /api/bookings/window)
 func (_ Unimplemented) BookingsWindow(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (DELETE /api/bookings/{id})
+func (_ Unimplemented) BookingsRemove(w http.ResponseWriter, r *http.Request, id int32) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -224,6 +232,32 @@ func (siw *ServerInterfaceWrapper) BookingsWindow(w http.ResponseWriter, r *http
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.BookingsWindow(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// BookingsRemove operation middleware
+func (siw *ServerInterfaceWrapper) BookingsRemove(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id int32
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", chi.URLParam(r, "id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int32", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.BookingsRemove(w, r, id)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -478,6 +512,9 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 		r.Get(options.BaseURL+"/api/bookings/window", wrapper.BookingsWindow)
 	})
 	r.Group(func(r chi.Router) {
+		r.Delete(options.BaseURL+"/api/bookings/{id}", wrapper.BookingsRemove)
+	})
+	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/api/event-types", wrapper.EventTypesList)
 	})
 	r.Group(func(r chi.Router) {
@@ -668,6 +705,78 @@ func (response BookingsWindow200JSONResponse) VisitBookingsWindowResponse(w http
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type BookingsRemoveRequestObject struct {
+	Id int32 `json:"id"`
+}
+
+type BookingsRemoveResponseObject interface {
+	VisitBookingsRemoveResponse(w http.ResponseWriter) error
+}
+
+type BookingsRemove204Response struct {
+}
+
+func (response BookingsRemove204Response) VisitBookingsRemoveResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type BookingsRemove400JSONResponse ApiErrorBody
+
+func (response BookingsRemove400JSONResponse) VisitBookingsRemoveResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type BookingsRemove404JSONResponse ApiErrorBody
+
+func (response BookingsRemove404JSONResponse) VisitBookingsRemoveResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type BookingsRemove409JSONResponse ApiErrorBody
+
+func (response BookingsRemove409JSONResponse) VisitBookingsRemoveResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type BookingsRemove422JSONResponse ApiErrorBody
+
+func (response BookingsRemove422JSONResponse) VisitBookingsRemoveResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(422)
 	_, err := buf.WriteTo(w)
 	return err
 }
@@ -1069,6 +1178,9 @@ type StrictServerInterface interface {
 	// (GET /api/bookings/window)
 	BookingsWindow(ctx context.Context, request BookingsWindowRequestObject) (BookingsWindowResponseObject, error)
 
+	// (DELETE /api/bookings/{id})
+	BookingsRemove(ctx context.Context, request BookingsRemoveRequestObject) (BookingsRemoveResponseObject, error)
+
 	// (GET /api/event-types)
 	EventTypesList(ctx context.Context, request EventTypesListRequestObject) (EventTypesListResponseObject, error)
 
@@ -1196,6 +1308,32 @@ func (sh *strictHandler) BookingsWindow(w http.ResponseWriter, r *http.Request) 
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(BookingsWindowResponseObject); ok {
 		if err := validResponse.VisitBookingsWindowResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// BookingsRemove operation middleware
+func (sh *strictHandler) BookingsRemove(w http.ResponseWriter, r *http.Request, id int32) {
+	var request BookingsRemoveRequestObject
+
+	request.Id = id
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.BookingsRemove(ctx, request.(BookingsRemoveRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "BookingsRemove")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(BookingsRemoveResponseObject); ok {
+		if err := validResponse.VisitBookingsRemoveResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {
@@ -1349,35 +1487,35 @@ func (sh *strictHandler) EventTypesSlots(w http.ResponseWriter, r *http.Request,
 // const string: with thousands of chunks the chained `+` fold is several
 // times slower for the Go compiler than parsing a slice literal.
 var swaggerSpec = []string{
-	"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",
+	"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",
 }
 
 // decodeSpec returns the embedded OpenAPI spec as raw JSON bytes,

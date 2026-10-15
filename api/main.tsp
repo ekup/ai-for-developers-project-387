@@ -140,6 +140,10 @@ namespace Api {
     @post
     create(@body body: CreateBookingRequest): BookingCreated | ErrorResponse;
 
+    @doc("Отменить запись (владелец).")
+    @delete
+    remove(@path id: int32): NoContent | ErrorResponse;
+
     @doc("Предстоящие встречи всех типов (владелец).")
     @route("/upcoming")
     @get

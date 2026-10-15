@@ -6,6 +6,9 @@ import type {
   BookingsCreateData,
   BookingsCreateErrors,
   BookingsCreateResponses,
+  BookingsRemoveData,
+  BookingsRemoveErrors,
+  BookingsRemoveResponses,
   BookingsUpcomingData,
   BookingsUpcomingErrors,
   BookingsUpcomingResponses,
@@ -80,6 +83,17 @@ export const bookingsWindow = <ThrowOnError extends boolean = false>(
 ): RequestResult<BookingsWindowResponses, unknown, ThrowOnError> =>
   (options?.client ?? client).get<BookingsWindowResponses, unknown, ThrowOnError>({
     url: '/api/bookings/window',
+    ...options,
+  })
+
+/**
+ * Отменить запись (владелец).
+ */
+export const bookingsRemove = <ThrowOnError extends boolean = false>(
+  options: Options<BookingsRemoveData, ThrowOnError>,
+): RequestResult<BookingsRemoveResponses, BookingsRemoveErrors, ThrowOnError> =>
+  (options.client ?? client).delete<BookingsRemoveResponses, BookingsRemoveErrors, ThrowOnError>({
+    url: '/api/bookings/{id}',
     ...options,
   })
 
