@@ -12,8 +12,8 @@ type DateCalendarProps = {
 }
 
 /**
- * DateCalendar — сетка дат окна записи. Показывает только даты внутри окна и
- * не позволяет выбрать что-то за его пределами.
+ * DateCalendar — сетка дат окна записи. Показывает только доступные даты
+ * (будние дни внутри окна) и не позволяет выбрать что-то за его пределами.
  */
 export function DateCalendar({ dates, selected, onSelect }: DateCalendarProps) {
   return (

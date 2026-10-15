@@ -55,6 +55,20 @@ export function dateRange(startISO: string, endISO: string): string[] {
   return dates
 }
 
+/** isWeekend сообщает, приходится ли дата на субботу или воскресенье. */
+export function isWeekend(iso: string): boolean {
+  const weekday = parseISODate(iso).getDay()
+  return weekday === 0 || weekday === 6
+}
+
+/**
+ * weekdayRange возвращает будние дни от `startISO` до `endISO` включительно:
+ * выходные исключены, как и в правилах доступности слотов на сервере.
+ */
+export function weekdayRange(startISO: string, endISO: string): string[] {
+  return dateRange(startISO, endISO).filter((date) => !isWeekend(date))
+}
+
 /** formatDateLabel возвращает подпись даты, например «13 октября, вт». */
 export function formatDateLabel(iso: string): string {
   const date = parseISODate(iso)

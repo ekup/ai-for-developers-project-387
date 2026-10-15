@@ -20,7 +20,7 @@ import {
 import type { Booking, BookingWindow, EventType } from '../../api/client'
 import { bookingsCreate, bookingsWindow, eventTypesList, eventTypesSlots } from '../../api/client'
 import { DateCalendar } from './DateCalendar'
-import { dateRange, formatSlotDateLabel, formatSlotTime } from './dates'
+import { formatSlotDateLabel, formatSlotTime, weekdayRange } from './dates'
 import { formatDuration } from './duration'
 
 // slotsResult хранит ответ на запрос слотов вместе с датой, к которой он
@@ -118,7 +118,7 @@ export function EventTypePage() {
   }, [])
 
   const eventType = eventTypes?.find((item) => item.id === eventTypeId) ?? null
-  const dates = useMemo(() => (window ? dateRange(window.start, window.end) : []), [window])
+  const dates = useMemo(() => (window ? weekdayRange(window.start, window.end) : []), [window])
   const selectedDate = selected ?? dates[0] ?? null
 
   useEffect(() => {

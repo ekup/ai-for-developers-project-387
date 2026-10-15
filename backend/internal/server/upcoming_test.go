@@ -87,7 +87,7 @@ func TestBookingsUpcomingHidesPast(t *testing.T) {
 	router, db := newSeededRouter(t)
 	id := insertEventType(t, db, 15)
 
-	insertBooking(t, db, id, tomorrowAt(9, 0).AddDate(0, 0, -2), "Прошлая", "past@example.com", "")
+	insertBooking(t, db, id, tomorrowAt(9, 0).AddDate(0, 0, -7), "Прошлая", "past@example.com", "")
 	insertBooking(t, db, id, tomorrowAt(9, 0), "Предстоящая", "future@example.com", "")
 
 	bookings := getUpcoming(t, router)

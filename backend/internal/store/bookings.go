@@ -141,8 +141,9 @@ func UpcomingBookings(ctx context.Context, db *sql.DB, now time.Time) ([]Booking
 	return bookings, nil
 }
 
-// ensureBookable проверяет, что запись начнётся в будущем, на сетке слотов,
-// попадёт в окно записи и целиком уложится в рабочие часы своего дня.
+// ensureBookable проверяет, что запись начнётся в будущем, в будний день, на
+// сетке слотов, попадёт в окно записи и целиком уложится в рабочие часы своего
+// дня.
 func ensureBookable(start time.Time, durationMinutes int64, now time.Time) error {
 	duration := time.Duration(durationMinutes) * time.Minute
 	if duration <= 0 || start.Before(now) {
@@ -150,7 +151,7 @@ func ensureBookable(start time.Time, durationMinutes int64, now time.Time) error
 	}
 
 	day, inWindow := dayInWindow(start, now)
-	if !inWindow {
+	if !inWindow || isWeekend(day) {
 		return ErrUnprocessable
 	}
 
