@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.1](https://github.com/ekup/ai-for-developers-project-387/compare/backend/v0.4.0...backend/v0.4.1) (2026-10-15)
+
+
+### Bug Fixes
+
+* api contracts ([68a902b](https://github.com/ekup/ai-for-developers-project-387/commit/68a902b4a2fdb011090223a50fae1128f2674a8d))
+
 ## [0.4.0](https://github.com/ekup/ai-for-developers-project-387/compare/backend/v0.3.0...backend/v0.4.0) (2026-10-15)
 
 
