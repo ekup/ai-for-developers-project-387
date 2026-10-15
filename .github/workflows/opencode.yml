@@ -17,13 +17,52 @@ jobs:
     permissions:
       id-token: write
       contents: read
-      pull-requests: read
+      pull-requests: write
       issues: read
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
         with:
           persist-credentials: false
+
+      # Экшен opencode ниже коммитит сам, а сообщение берёт из служебного запроса
+      # «summarize the following in less than 40 characters» — из короткого резюме
+      # ответа агента, где тип Conventional Commits теряется. Release-please такие
+      # коммиты игнорирует, поэтому коммит делает сам агент (см. AGENTS.md), а
+      # этот шаг запоминает состояние ветки до запуска: по нему последний шаг
+      # отличает коммит агента от чужого и не трогает заголовок PR зря.
+      - name: Запомнить состояние ветки до запуска агента
+        id: before
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          EVENT_PR_NUMBER: ${{ github.event.pull_request.number }}
+          EVENT_ISSUE_NUMBER: ${{ github.event.issue.number }}
+          EVENT_ISSUE_PR_URL: ${{ github.event.issue.pull_request.url }}
+        run: |
+          set -euo pipefail
+
+          # Номер PR, если команда оставлена в существующем PR: либо
+          # review-комментарий, либо обычный комментарий на странице PR.
+          pr=""
+          if [[ "${GITHUB_EVENT_NAME}" == "pull_request_review_comment" ]]; then
+            pr="${EVENT_PR_NUMBER}"
+          elif [[ -n "${EVENT_ISSUE_PR_URL}" ]]; then
+            pr="${EVENT_ISSUE_NUMBER}"
+          fi
+
+          if [[ -n "${pr}" ]]; then
+            echo "pr=${pr}" >> "$GITHUB_OUTPUT"
+            echo "oid=$(gh pr view "${pr}" --repo "${GITHUB_REPOSITORY}" \
+              --json commits --jq '.commits[-1].oid')" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # Команда в issue: экшен создаст ветку opencode/issue<N>-<timestamp> и PR.
+          # Запоминаем уже открытые PR с таким префиксом, чтобы потом найти новый.
+          echo "prs=$(gh pr list --repo "${GITHUB_REPOSITORY}" --state open --limit 100 \
+            --json number,headRefName \
+            --jq "[.[] | select(.headRefName | startswith(\"opencode/issue${EVENT_ISSUE_NUMBER}-\")) | .number] | join(\",\")")" \
+            >> "$GITHUB_OUTPUT"
 
       - name: Run opencode
         uses: anomalyco/opencode/github@latest
@@ -34,3 +73,54 @@ jobs:
           # (opencode.ai/inference/go/v1), а не через кредиты Console,
           # поэтому ключ тот же — OPENCODE_API_KEY.
           model: opencode-go/deepseek-v4.1-flash
+
+      - name: Нормализовать заголовок PR
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          EVENT_ISSUE_NUMBER: ${{ github.event.issue.number }}
+          BEFORE_PR: ${{ steps.before.outputs.pr }}
+          BEFORE_OID: ${{ steps.before.outputs.oid }}
+          BEFORE_PRS: ${{ steps.before.outputs.prs }}
+        run: |
+          set -euo pipefail
+
+          pr_list() {
+            gh pr list --repo "${GITHUB_REPOSITORY}" --state open --limit 100 \
+              --json number,headRefName \
+              --jq "[.[] | select(.headRefName | startswith(\"opencode/issue${EVENT_ISSUE_NUMBER}-\")) | .number] | map(select(. as \$n | ([${BEFORE_PRS}] | index(\$n) | not))) | max // empty"
+          }
+
+          if [[ -n "${BEFORE_PR}" ]]; then
+            pr="${BEFORE_PR}"
+            oid="$(gh pr view "${pr}" --repo "${GITHUB_REPOSITORY}" \
+              --json commits --jq '.commits[-1].oid')"
+            if [[ "${oid}" == "${BEFORE_OID}" ]]; then
+              echo "В PR #${pr} новых коммитов нет — заголовок не трогаем."
+              exit 0
+            fi
+          else
+            pr="$(pr_list)"
+            if [[ -z "${pr}" ]]; then
+              echo "Новый PR от opencode не найден — заголовок не трогаем."
+              exit 0
+            fi
+          fi
+
+          subject="$(gh pr view "${pr}" --repo "${GITHUB_REPOSITORY}" \
+            --json commits --jq '.commits[-1].messageHeadline')"
+          title="$(gh pr view "${pr}" --repo "${GITHUB_REPOSITORY}" --json title --jq '.title')"
+
+          # Типы — те же, что перечислены в AGENTS.md.
+          re='^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(\([[:alnum:]/_.-]+\))?!?: .+'
+          if [[ ! "${subject}" =~ ${re} ]]; then
+            echo "::warning::subject последнего коммита не по Conventional Commits: «${subject}» — заголовок PR #${pr} оставлен как есть"
+            exit 0
+          fi
+
+          if [[ "${title}" == "${subject}" ]]; then
+            echo "Заголовок PR #${pr} уже совпадает с subject'ом коммита."
+            exit 0
+          fi
+
+          gh pr edit "${pr}" --repo "${GITHUB_REPOSITORY}" --title "${subject}"
+          echo "Заголовок PR #${pr}: «${title}» → «${subject}»"
