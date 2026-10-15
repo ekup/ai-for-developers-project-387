@@ -52,8 +52,8 @@ func workdayBounds(day time.Time) (time.Time, time.Time) {
 	return day.Add(workdayStartHour * time.Hour), day.Add(workdayEndHour * time.Hour)
 }
 
-// isWeekend сообщает, приходится ли начало календарного дня на выходной.
-func isWeekend(day time.Time) bool {
+// isWeekendDay сообщает, приходится ли начало календарного дня на выходной.
+func isWeekendDay(day time.Time) bool {
 	weekday := day.Weekday()
 	return weekday == time.Saturday || weekday == time.Sunday
 }
@@ -74,7 +74,7 @@ func Slots(ctx context.Context, db *sql.DB, eventTypeID int64, date, now time.Ti
 	slots := make([]time.Time, 0)
 
 	day, inWindow := dayInWindow(date, now)
-	if !inWindow || isWeekend(day) {
+	if !inWindow || isWeekendDay(day) {
 		return slots, nil
 	}
 

@@ -151,7 +151,7 @@ func ensureBookable(start time.Time, durationMinutes int64, now time.Time) error
 	}
 
 	day, inWindow := dayInWindow(start, now)
-	if !inWindow || isWeekend(day) {
+	if !inWindow || isWeekendDay(day) {
 		return ErrUnprocessable
 	}
 
