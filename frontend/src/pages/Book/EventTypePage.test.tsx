@@ -91,15 +91,21 @@ describe('EventTypePage', () => {
     expect(screen.getByText('Быстрый вопрос')).toBeInTheDocument()
     expect(screen.getByText('15 минут')).toBeInTheDocument()
 
-    // Календарь показывает ровно дни серверного окна: без вчерашнего и без
-    // дня за окном.
+    // Календарь показывает будние дни серверного окна: без вчерашнего, без дня
+    // за окном и без выходных.
     const calendar = screen.getByRole('group', { name: 'Календарь' })
-    expect(within(calendar).getAllByRole('button')).toHaveLength(14)
+    expect(within(calendar).getAllByRole('button')).toHaveLength(10)
     expect(
       within(calendar).queryByRole('button', { name: formatDateLabel('2026-10-11') }),
     ).not.toBeInTheDocument()
     expect(
       within(calendar).queryByRole('button', { name: formatDateLabel('2026-10-26') }),
+    ).not.toBeInTheDocument()
+    expect(
+      within(calendar).queryByRole('button', { name: formatDateLabel('2026-10-17') }),
+    ).not.toBeInTheDocument()
+    expect(
+      within(calendar).queryByRole('button', { name: formatDateLabel('2026-10-18') }),
     ).not.toBeInTheDocument()
 
     expect(await screen.findByRole('button', { name: '09:00' })).toBeInTheDocument()

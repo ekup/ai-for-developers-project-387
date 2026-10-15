@@ -59,6 +59,43 @@ func dateString(t time.Time) string {
 	return t.Format("2006-01-02")
 }
 
+// isWeekend сообщает, приходится ли день на субботу или воскресенье.
+func isWeekend(day time.Time) bool {
+	return day.Weekday() == time.Saturday || day.Weekday() == time.Sunday
+}
+
+// nextWeekdayDate возвращает дату ближайшего буднего дня после сегодняшнего в
+// пределах окна записи: тесты, которым нужны полные сутки слотов, не должны
+// зависеть от того, на какой день недели они запущены.
+func nextWeekdayDate(t *testing.T, now time.Time) string {
+	t.Helper()
+
+	for offset := 1; offset < 14; offset++ {
+		day := now.AddDate(0, 0, offset)
+		if !isWeekend(day) {
+			return dateString(day)
+		}
+	}
+
+	t.Fatal("в окне записи не нашлось буднего дня")
+	return ""
+}
+
+// weekendDate возвращает ближайшую дату выходного дня в пределах окна записи.
+func weekendDate(t *testing.T, now time.Time) string {
+	t.Helper()
+
+	for offset := 0; offset < 14; offset++ {
+		day := now.AddDate(0, 0, offset)
+		if isWeekend(day) {
+			return dateString(day)
+		}
+	}
+
+	t.Fatal("в окне записи не нашлось выходного дня")
+	return ""
+}
+
 // TestBookingsWindowReturnsServerToday проверяет, что окно записи начинается с
 // серверной сегодняшней даты и длится 14 дней.
 func TestBookingsWindowReturnsServerToday(t *testing.T) {
@@ -137,7 +174,7 @@ func TestEventTypesSlotsGridStep(t *testing.T) {
 	router, db := newSeededRouter(t)
 	id := insertEventType(t, db, 15)
 
-	date := dateString(time.Now().AddDate(0, 0, 1))
+	date := nextWeekdayDate(t, time.Now())
 	code, body, _ := getSlots(t, router, id, date)
 
 	if code != http.StatusOK {
@@ -172,7 +209,7 @@ func TestEventTypesSlotsEndFitsWorkday(t *testing.T) {
 	router, db := newSeededRouter(t)
 	id := insertEventType(t, db, 30)
 
-	code, body, _ := getSlots(t, router, id, dateString(time.Now().AddDate(0, 0, 1)))
+	code, body, _ := getSlots(t, router, id, nextWeekdayDate(t, time.Now()))
 	if code != http.StatusOK {
 		t.Fatalf("ожидался статус %d, получен %d", http.StatusOK, code)
 	}
@@ -190,7 +227,7 @@ func TestEventTypesSlotsEndFitsWorkday(t *testing.T) {
 // ровно 9 часов даёт единственный слот 09:00, 541 минута — ни одного.
 func TestEventTypesSlotsDurationWithinWorkday(t *testing.T) {
 	router, db := newSeededRouter(t)
-	date := dateString(time.Now().AddDate(0, 0, 1))
+	date := nextWeekdayDate(t, time.Now())
 
 	nineHours := insertEventType(t, db, 9*60)
 	code, body, _ := getSlots(t, router, nineHours, date)
@@ -226,9 +263,16 @@ func TestEventTypesSlotsBookingWindow(t *testing.T) {
 	})
 
 	t.Run("последний день окна", func(t *testing.T) {
-		code, body, _ := getSlots(t, router, id, dateString(today.AddDate(0, 0, 13)))
+		last := today.AddDate(0, 0, 13)
+		code, body, _ := getSlots(t, router, id, dateString(last))
 		if code != http.StatusOK {
 			t.Fatalf("ожидался статус %d, получен %d", http.StatusOK, code)
+		}
+		if isWeekend(last) {
+			if len(body.Slots) != 0 {
+				t.Fatalf("для выходного дня ожидалось 0 слотов, получено %v", body.Slots)
+			}
+			return
 		}
 		if len(body.Slots) == 0 {
 			t.Fatal("на последнем дне окна ожидались слоты")
@@ -262,10 +306,14 @@ func TestEventTypesSlotsBookingWindow(t *testing.T) {
 // TestEventTypesSlotsSkipPastStarts проверяет, что для сегодняшнего дня
 // прошедшие старты не возвращаются: все слоты не раньше текущего момента.
 func TestEventTypesSlotsSkipPastStarts(t *testing.T) {
+	now := time.Now()
+	if isWeekend(now) {
+		t.Skip("сегодня выходной — для него слотов нет по отдельному правилу")
+	}
+
 	router, db := newSeededRouter(t)
 	id := insertEventType(t, db, 15)
 
-	now := time.Now()
 	code, body, _ := getSlots(t, router, id, dateString(now))
 	if code != http.StatusOK {
 		t.Fatalf("ожидался статус %d, получен %d", http.StatusOK, code)
@@ -279,5 +327,20 @@ func TestEventTypesSlotsSkipPastStarts(t *testing.T) {
 		if parsed.Before(now) {
 			t.Fatalf("вернулся прошедший слот %s", slot)
 		}
+	}
+}
+
+// TestEventTypesSlotsSkipsWeekends проверяет, что на субботу и воскресенье
+// свободных слотов нет.
+func TestEventTypesSlotsSkipsWeekends(t *testing.T) {
+	router, db := newSeededRouter(t)
+	id := insertEventType(t, db, 15)
+
+	code, body, _ := getSlots(t, router, id, weekendDate(t, time.Now()))
+	if code != http.StatusOK {
+		t.Fatalf("ожидался статус %d, получен %d", http.StatusOK, code)
+	}
+	if len(body.Slots) != 0 {
+		t.Fatalf("для выходного дня ожидалось 0 слотов, получено %v", body.Slots)
 	}
 }

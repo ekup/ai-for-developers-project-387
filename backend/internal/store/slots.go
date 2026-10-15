@@ -52,10 +52,16 @@ func workdayBounds(day time.Time) (time.Time, time.Time) {
 	return day.Add(workdayStartHour * time.Hour), day.Add(workdayEndHour * time.Hour)
 }
 
+// isWeekendDay сообщает, приходится ли начало календарного дня на выходной.
+func isWeekendDay(day time.Time) bool {
+	weekday := day.Weekday()
+	return weekday == time.Saturday || weekday == time.Sunday
+}
+
 // Slots возвращает свободные старты слотов типа события на дату в серверном
 // часовом поясе. Сетка стартов — каждые 15 минут в окне 09:00–18:00, конец
-// слота не выходит за 18:00. Дата вне 14-дневного окна, прошедшие старты и
-// старты, пересекающиеся с существующими записями, исключаются.
+// слота не выходит за 18:00. Выходные, даты вне 14-дневного окна, прошедшие
+// старты и старты, пересекающиеся с существующими записями, исключаются.
 //
 // Если тип события отсутствует или мягко удалён, возвращается ErrNotFound.
 // Если слотов нет по правилам окна, возвращается пустой (не nil) список.
@@ -68,7 +74,7 @@ func Slots(ctx context.Context, db *sql.DB, eventTypeID int64, date, now time.Ti
 	slots := make([]time.Time, 0)
 
 	day, inWindow := dayInWindow(date, now)
-	if !inWindow {
+	if !inWindow || isWeekendDay(day) {
 		return slots, nil
 	}
 

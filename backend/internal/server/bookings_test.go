@@ -50,12 +50,34 @@ func postBooking(t *testing.T, router http.Handler, req bookingRequest) (int, []
 	return rec.Code, rec.Body.Bytes()
 }
 
-// tomorrowAt возвращает момент на следующий день в заданное время по серверному
-// часовому поясу — он всегда в пределах окна записи и в будущем.
+// tomorrowAt возвращает момент ближайшего буднего дня после сегодняшнего в
+// заданное время по серверному часовому поясу — он всегда в пределах окна
+// записи, в будущем и не на выходном.
 func tomorrowAt(hour, minute int) time.Time {
 	now := time.Now()
 	day := now.AddDate(0, 0, 1)
+	for isWeekend(day) {
+		day = day.AddDate(0, 0, 1)
+	}
 	return time.Date(day.Year(), day.Month(), day.Day(), hour, minute, 0, 0, now.Location())
+}
+
+// weekendAt возвращает ближайший выходной день в окне записи в заданное время
+// по серверному часовому поясу. Момент гарантированно в будущем.
+func weekendAt(hour, minute int) time.Time {
+	now := time.Now()
+	for offset := 0; offset < 14; offset++ {
+		day := now.AddDate(0, 0, offset)
+		if !isWeekend(day) {
+			continue
+		}
+		moment := time.Date(day.Year(), day.Month(), day.Day(), hour, minute, 0, 0, now.Location())
+		if moment.After(now) {
+			return moment
+		}
+	}
+
+	return time.Time{}
 }
 
 // TestBookingsCreateCreatesBooking проверяет, что валидный запрос создаёт
@@ -188,11 +210,12 @@ func TestBookingsCreateRejectsUnavailableTime(t *testing.T) {
 		name     string
 		startsAt time.Time
 	}{
-		{name: "в прошлом", startsAt: tomorrowAt(9, 0).AddDate(0, 0, -2)},
+		{name: "в прошлом", startsAt: tomorrowAt(9, 0).AddDate(0, 0, -7)},
 		{name: "вне окна записи", startsAt: tomorrowAt(9, 0).AddDate(0, 0, 14)},
 		{name: "до начала рабочего дня", startsAt: tomorrowAt(8, 45)},
 		{name: "не укладывается в рабочий день", startsAt: tomorrowAt(17, 50)},
 		{name: "не по сетке слотов", startsAt: tomorrowAt(9, 7)},
+		{name: "в выходной день", startsAt: weekendAt(9, 0)},
 	}
 
 	for _, tc := range cases {
