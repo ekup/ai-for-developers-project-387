@@ -66,7 +66,6 @@ type CreateEventTypeRequest struct {
 	Name            string `json:"name"`
 }
 
-// TODO check struct
 // EventType Тип события: шаблон встречи, по которому гость выбирает слот.
 type EventType struct {
 	// Description Описание.

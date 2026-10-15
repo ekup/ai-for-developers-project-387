@@ -32,6 +32,7 @@ func TestBookingsRemoveFreesSlot(t *testing.T) {
 	code, raw := postBooking(t, router, bookingRequest{
 		EventTypeID: int64(id), StartsAt: startsAt, GuestName: "Анна", GuestEmail: "anna@example.com",
 	})
+    // TODO: check it
 	if code != http.StatusCreated {
 		t.Fatalf("подготовить запись: ожидался статус %d, получен %d, тело: %s", http.StatusCreated, code, raw)
 	}
