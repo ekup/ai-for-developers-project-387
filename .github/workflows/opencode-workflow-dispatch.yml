@@ -14,6 +14,10 @@ on:
 jobs:
   opencode:
     runs-on: ubuntu-latest
+    # Страховка от зависания: если агент встанет на запросе разрешения,
+    # которого в Actions никто не подтвердит, джоба упадёт по таймауту,
+    # а не будет ждать дефолтные 6 часов (см. AGENTS.md).
+    timeout-minutes: 15
     permissions:
       id-token: write
       contents: write
@@ -28,6 +32,11 @@ jobs:
         uses: anomalyco/opencode/github@latest
         env:
           OPENCODE_API_KEY: ${{ secrets.OPENCODE_API_KEY }}
+          # Агент работает с issues через gh CLI (docs/agents/issue-tracker.md),
+          # а без токена gh уходит искать креды в $HOME и встаёт на запросе
+          # доступа к внешнему каталогу.
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           model: ${{ inputs.model }}
+          use_github_token: true
           prompt: ${{ inputs.prompt }}

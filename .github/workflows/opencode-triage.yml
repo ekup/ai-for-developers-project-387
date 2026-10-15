@@ -7,6 +7,9 @@ on:
 jobs:
   triage:
     runs-on: ubuntu-latest
+    # Страховка от зависания на запросе разрешения, которого в Actions никто
+    # не подтвердит (см. AGENTS.md): падаем по таймауту, а не ждём 6 часов.
+    timeout-minutes: 15
     permissions:
       id-token: write
       contents: write
