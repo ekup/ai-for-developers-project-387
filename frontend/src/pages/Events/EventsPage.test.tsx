@@ -1,13 +1,14 @@
 import { MantineProvider } from '@mantine/core'
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { bookingsUpcoming } from '../../api/client'
+import { bookingsRemove, bookingsUpcoming } from '../../api/client'
 import { formatSlotDateLabel, formatSlotTime } from '../Book/dates'
 import { EventsPage } from './EventsPage'
 
 vi.mock('../../api/client', () => ({
+  bookingsRemove: vi.fn(),
   bookingsUpcoming: vi.fn(),
 }))
 
@@ -49,6 +50,7 @@ function renderEventsPage() {
 describe('EventsPage', () => {
   afterEach(() => {
     vi.mocked(bookingsUpcoming).mockReset()
+    vi.mocked(bookingsRemove).mockReset()
   })
 
   it('показывает предстоящие встречи по порядку: время, тип, данные гостя и комментарий', async () => {
@@ -100,5 +102,33 @@ describe('EventsPage', () => {
     renderEventsPage()
 
     expect(await screen.findByText('Не удалось загрузить встречи')).toBeInTheDocument()
+  })
+
+  it('отменяет запись по кнопке и убирает её из списка', async () => {
+    vi.mocked(bookingsUpcoming).mockResolvedValue({ data: [first, second], error: undefined })
+    vi.mocked(bookingsRemove).mockResolvedValue({ data: undefined, error: undefined })
+
+    renderEventsPage()
+
+    fireEvent.click((await screen.findAllByRole('button', { name: 'Отменить' }))[0])
+
+    await waitFor(() => expect(bookingsRemove).toHaveBeenCalledWith({ path: { id: first.id } }))
+    await waitFor(() => expect(screen.queryByText('Анна')).not.toBeInTheDocument())
+    expect(screen.getByText('Борис')).toBeInTheDocument()
+  })
+
+  it('сообщает, если отменить запись не удалось', async () => {
+    vi.mocked(bookingsUpcoming).mockResolvedValue({ data: [first], error: undefined })
+    vi.mocked(bookingsRemove).mockResolvedValue({
+      data: undefined,
+      error: { error: 'запись не найдена' },
+    })
+
+    renderEventsPage()
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Отменить' }))
+
+    expect(await screen.findByText('Не удалось отменить запись')).toBeInTheDocument()
+    expect(screen.getByText('Анна')).toBeInTheDocument()
   })
 })

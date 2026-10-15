@@ -9,6 +9,7 @@ client.setConfig({ baseUrl: window.location.origin })
 
 export {
   bookingsCreate,
+  bookingsRemove,
   bookingsUpcoming,
   bookingsWindow,
   eventTypesCreate,

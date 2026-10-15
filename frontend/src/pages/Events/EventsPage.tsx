@@ -3,6 +3,7 @@ import {
   Alert,
   Badge,
   Box,
+  Button,
   Card,
   Container,
   Group,
@@ -13,7 +14,7 @@ import {
 } from '@mantine/core'
 
 import type { Booking } from '../../api/client'
-import { bookingsUpcoming } from '../../api/client'
+import { bookingsRemove, bookingsUpcoming } from '../../api/client'
 import { formatSlotDateLabel, formatSlotTime } from '../Book/dates'
 import { formatDuration } from '../Book/duration'
 
@@ -21,10 +22,12 @@ import { formatDuration } from '../Book/duration'
  * Раздел «Предстоящие события» — взгляд владельца: единый список будущих
  * встреч всех типов событий, отсортированный сервером по времени начала.
  * Сервер скрывает прошедшие записи и оставляет записи мягко удалённых типов.
+ * Владелец может отменить запись — она пропадает из списка и освобождает слот.
  */
 export function EventsPage() {
   const [bookings, setBookings] = useState<Booking[] | null>(null)
   const [loadFailed, setLoadFailed] = useState(false)
+  const [removeFailed, setRemoveFailed] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -51,6 +54,23 @@ export function EventsPage() {
     }
   }, [])
 
+  async function handleCancel(id: number) {
+    setRemoveFailed(false)
+
+    try {
+      const result = await bookingsRemove({ path: { id } })
+
+      if (result.error) {
+        setRemoveFailed(true)
+        return
+      }
+
+      setBookings((current) => (current ?? []).filter((booking) => booking.id !== id))
+    } catch {
+      setRemoveFailed(true)
+    }
+  }
+
   return (
     <Box component="main" py="xl">
       <Container size="lg">
@@ -63,6 +83,12 @@ export function EventsPage() {
           {loadFailed ? (
             <Alert color="red" title="Не удалось загрузить встречи">
               Попробуйте обновить страницу позже.
+            </Alert>
+          ) : null}
+
+          {removeFailed ? (
+            <Alert color="red" title="Не удалось отменить запись">
+              Попробуйте ещё раз.
             </Alert>
           ) : null}
 
@@ -85,9 +111,19 @@ export function EventsPage() {
                           {formatSlotTime(booking.startsAt)}
                         </Text>
                       </Stack>
-                      <Badge size="lg" variant="light" color="orange">
-                        {formatDuration(booking.eventType.durationMinutes)}
-                      </Badge>
+                      <Stack gap="xs" align="flex-end">
+                        <Badge size="lg" variant="light" color="orange">
+                          {formatDuration(booking.eventType.durationMinutes)}
+                        </Badge>
+                        <Button
+                          variant="light"
+                          color="red"
+                          size="xs"
+                          onClick={() => handleCancel(booking.id)}
+                        >
+                          Отменить
+                        </Button>
+                      </Stack>
                     </Group>
 
                     <Stack gap={2}>

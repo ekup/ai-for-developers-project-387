@@ -10,6 +10,7 @@ import { App } from './App'
 // модуль-клиент, чтобы не ходить в сеть.
 vi.mock('./api/client', () => ({
   bookingsCreate: vi.fn(),
+  bookingsRemove: vi.fn(),
   bookingsUpcoming: vi.fn(),
   bookingsWindow: vi.fn(),
   eventTypesCreate: vi.fn(),

@@ -154,6 +154,23 @@ func (h *handlers) BookingsUpcoming(
 	return resp, nil
 }
 
+// BookingsRemove отменяет запись владельца. Отменённая запись перестаёт
+// занимать слот и пропадает из предстоящих встреч.
+func (h *handlers) BookingsRemove(
+	ctx context.Context,
+	req api.BookingsRemoveRequestObject,
+) (api.BookingsRemoveResponseObject, error) {
+	err := store.DeleteBooking(ctx, h.db, int64(req.Id))
+	if errors.Is(err, store.ErrNotFound) {
+		return api.BookingsRemove404JSONResponse{Error: "запись не найдена"}, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	return api.BookingsRemove204Response{}, nil
+}
+
 func (h *handlers) EventTypesCreate(
 	ctx context.Context,
 	req api.EventTypesCreateRequestObject,

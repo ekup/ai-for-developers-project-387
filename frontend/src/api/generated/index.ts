@@ -2,6 +2,7 @@
 
 export {
   bookingsCreate,
+  bookingsRemove,
   bookingsUpcoming,
   bookingsWindow,
   eventTypesCreate,
@@ -19,6 +20,11 @@ export type {
   BookingsCreateErrors,
   BookingsCreateResponse,
   BookingsCreateResponses,
+  BookingsRemoveData,
+  BookingsRemoveError,
+  BookingsRemoveErrors,
+  BookingsRemoveResponse,
+  BookingsRemoveResponses,
   BookingsUpcomingData,
   BookingsUpcomingError,
   BookingsUpcomingErrors,
