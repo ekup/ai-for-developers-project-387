@@ -59,6 +59,30 @@ func dateString(t time.Time) string {
 	return t.Format("2006-01-02")
 }
 
+// isWeekendDate сообщает, что дата — суббота или воскресенье.
+func isWeekendDate(t time.Time) bool {
+	return t.Weekday() == time.Saturday || t.Weekday() == time.Sunday
+}
+
+// nextWorkdayDate возвращает ближайшую будущую дату-будний день: тесты слотов
+// не должны зависеть от дня недели запуска.
+func nextWorkdayDate(now time.Time) time.Time {
+	day := now.AddDate(0, 0, 1)
+	for isWeekendDate(day) {
+		day = day.AddDate(0, 0, 1)
+	}
+	return day
+}
+
+// nextWeekdayOn возвращает ближайшую будущую дату с заданным днём недели.
+func nextWeekdayOn(now time.Time, target time.Weekday) time.Time {
+	day := now.AddDate(0, 0, 1)
+	for day.Weekday() != target {
+		day = day.AddDate(0, 0, 1)
+	}
+	return day
+}
+
 // TestBookingsWindowReturnsServerToday проверяет, что окно записи начинается с
 // серверной сегодняшней даты и длится 14 дней.
 func TestBookingsWindowReturnsServerToday(t *testing.T) {
@@ -137,7 +161,7 @@ func TestEventTypesSlotsGridStep(t *testing.T) {
 	router, db := newSeededRouter(t)
 	id := insertEventType(t, db, 15)
 
-	date := dateString(time.Now().AddDate(0, 0, 1))
+	date := dateString(nextWorkdayDate(time.Now()))
 	code, body, _ := getSlots(t, router, id, date)
 
 	if code != http.StatusOK {
@@ -172,7 +196,7 @@ func TestEventTypesSlotsEndFitsWorkday(t *testing.T) {
 	router, db := newSeededRouter(t)
 	id := insertEventType(t, db, 30)
 
-	code, body, _ := getSlots(t, router, id, dateString(time.Now().AddDate(0, 0, 1)))
+	code, body, _ := getSlots(t, router, id, dateString(nextWorkdayDate(time.Now())))
 	if code != http.StatusOK {
 		t.Fatalf("ожидался статус %d, получен %d", http.StatusOK, code)
 	}
@@ -190,7 +214,7 @@ func TestEventTypesSlotsEndFitsWorkday(t *testing.T) {
 // ровно 9 часов даёт единственный слот 09:00, 541 минута — ни одного.
 func TestEventTypesSlotsDurationWithinWorkday(t *testing.T) {
 	router, db := newSeededRouter(t)
-	date := dateString(time.Now().AddDate(0, 0, 1))
+	date := dateString(nextWorkdayDate(time.Now()))
 
 	nineHours := insertEventType(t, db, 9*60)
 	code, body, _ := getSlots(t, router, nineHours, date)
@@ -225,13 +249,20 @@ func TestEventTypesSlotsBookingWindow(t *testing.T) {
 		}
 	})
 
-	t.Run("последний день окна", func(t *testing.T) {
-		code, body, _ := getSlots(t, router, id, dateString(today.AddDate(0, 0, 13)))
+	t.Run("последний будний день окна", func(t *testing.T) {
+		// Последний день окна может выпасть на выходной — тогда слотов нет
+		// законно; берём последний будний день внутри окна.
+		last := today.AddDate(0, 0, 13)
+		for isWeekendDate(last) {
+			last = last.AddDate(0, 0, -1)
+		}
+
+		code, body, _ := getSlots(t, router, id, dateString(last))
 		if code != http.StatusOK {
 			t.Fatalf("ожидался статус %d, получен %d", http.StatusOK, code)
 		}
 		if len(body.Slots) == 0 {
-			t.Fatal("на последнем дне окна ожидались слоты")
+			t.Fatalf("на последнем буднем дне окна (%s) ожидались слоты", dateString(last))
 		}
 	})
 
@@ -257,6 +288,29 @@ func TestEventTypesSlotsBookingWindow(t *testing.T) {
 			t.Fatalf("для прошедшей даты ожидалось 0 слотов, получено %v", body.Slots)
 		}
 	})
+}
+
+// TestEventTypesSlotsEmptyOnWeekend проверяет, что у выходных дней нет слотов:
+// суббота и воскресенье исключены из окна записи.
+func TestEventTypesSlotsEmptyOnWeekend(t *testing.T) {
+	router, db := newSeededRouter(t)
+	id := insertEventType(t, db, 15)
+	now := time.Now()
+
+	for _, weekday := range []time.Weekday{time.Saturday, time.Sunday} {
+		day := nextWeekdayOn(now, weekday)
+
+		code, body, raw := getSlots(t, router, id, dateString(day))
+		if code != http.StatusOK {
+			t.Fatalf("%s: ожидался статус %d, получен %d", weekday, http.StatusOK, code)
+		}
+		if len(body.Slots) != 0 {
+			t.Fatalf("%s: у выходного дня ожидалось 0 слотов, получено %v", weekday, body.Slots)
+		}
+		if !strings.Contains(raw, `"slots":[]`) {
+			t.Errorf("%s: пустой список слотов должен сериализоваться как [], получено %q", weekday, raw)
+		}
+	}
 }
 
 // TestEventTypesSlotsSkipPastStarts проверяет, что для сегодняшнего дня

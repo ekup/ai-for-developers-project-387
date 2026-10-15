@@ -50,11 +50,12 @@ func postBooking(t *testing.T, router http.Handler, req bookingRequest) (int, []
 	return rec.Code, rec.Body.Bytes()
 }
 
-// tomorrowAt возвращает момент на следующий день в заданное время по серверному
-// часовому поясу — он всегда в пределах окна записи и в будущем.
-func tomorrowAt(hour, minute int) time.Time {
+// nextWorkdayAt возвращает ближайший будущий рабочий день (пн–пт) в заданное
+// время по серверному часовому поясу — он всегда в пределах окна записи и в
+// будущем, поэтому не зависит от дня недели запуска.
+func nextWorkdayAt(hour, minute int) time.Time {
 	now := time.Now()
-	day := now.AddDate(0, 0, 1)
+	day := nextWorkdayDate(now)
 	return time.Date(day.Year(), day.Month(), day.Day(), hour, minute, 0, 0, now.Location())
 }
 
@@ -63,7 +64,7 @@ func tomorrowAt(hour, minute int) time.Time {
 func TestBookingsCreateCreatesBooking(t *testing.T) {
 	router, db := newSeededRouter(t)
 	id := insertEventType(t, db, 15)
-	startsAt := tomorrowAt(9, 0)
+	startsAt := nextWorkdayAt(9, 0)
 
 	code, raw := postBooking(t, router, bookingRequest{
 		EventTypeID: int64(id),
@@ -116,7 +117,7 @@ func TestBookingsCreateCreatesBooking(t *testing.T) {
 func TestBookingsCreateValidatesRequiredFields(t *testing.T) {
 	router, db := newSeededRouter(t)
 	id := insertEventType(t, db, 15)
-	startsAt := tomorrowAt(9, 0)
+	startsAt := nextWorkdayAt(9, 0)
 
 	cases := []struct {
 		name string
@@ -152,7 +153,7 @@ func TestBookingsCreateValidatesRequiredFields(t *testing.T) {
 // отсутствующего и мягко удалённого типа события.
 func TestBookingsCreateNotFoundForMissingOrRemovedType(t *testing.T) {
 	router, db := newSeededRouter(t)
-	startsAt := tomorrowAt(9, 0)
+	startsAt := nextWorkdayAt(9, 0)
 
 	t.Run("отсутствующий тип", func(t *testing.T) {
 		code, raw := postBooking(t, router, bookingRequest{
@@ -188,11 +189,11 @@ func TestBookingsCreateRejectsUnavailableTime(t *testing.T) {
 		name     string
 		startsAt time.Time
 	}{
-		{name: "в прошлом", startsAt: tomorrowAt(9, 0).AddDate(0, 0, -2)},
-		{name: "вне окна записи", startsAt: tomorrowAt(9, 0).AddDate(0, 0, 14)},
-		{name: "до начала рабочего дня", startsAt: tomorrowAt(8, 45)},
-		{name: "не укладывается в рабочий день", startsAt: tomorrowAt(17, 50)},
-		{name: "не по сетке слотов", startsAt: tomorrowAt(9, 7)},
+		{name: "в прошлом", startsAt: nextWorkdayAt(9, 0).AddDate(0, 0, -2)},
+		{name: "вне окна записи", startsAt: nextWorkdayAt(9, 0).AddDate(0, 0, 14)},
+		{name: "до начала рабочего дня", startsAt: nextWorkdayAt(8, 45)},
+		{name: "не укладывается в рабочий день", startsAt: nextWorkdayAt(17, 50)},
+		{name: "не по сетке слотов", startsAt: nextWorkdayAt(9, 7)},
 	}
 
 	for _, tc := range cases {
@@ -207,6 +208,26 @@ func TestBookingsCreateRejectsUnavailableTime(t *testing.T) {
 	}
 }
 
+// TestBookingsCreateRejectsWeekend проверяет 422 при попытке создать запись на
+// субботу или воскресенье.
+func TestBookingsCreateRejectsWeekend(t *testing.T) {
+	router, db := newSeededRouter(t)
+	id := insertEventType(t, db, 15)
+	now := time.Now()
+
+	for _, weekday := range []time.Weekday{time.Saturday, time.Sunday} {
+		day := nextWeekdayOn(now, weekday)
+		startsAt := time.Date(day.Year(), day.Month(), day.Day(), 9, 0, 0, 0, now.Location())
+
+		code, raw := postBooking(t, router, bookingRequest{
+			EventTypeID: int64(id), StartsAt: startsAt, GuestName: "Анна", GuestEmail: "anna@example.com",
+		})
+		if code != http.StatusUnprocessableEntity {
+			t.Fatalf("%s: ожидался статус %d, получен %d, тело: %s", weekday, http.StatusUnprocessableEntity, code, raw)
+		}
+	}
+}
+
 // TestBookingsCreateConflictOnOverlapAcrossTypes проверяет 409 при частичном
 // пересечении интервалов записей разных типов событий.
 func TestBookingsCreateConflictOnOverlapAcrossTypes(t *testing.T) {
@@ -215,14 +236,14 @@ func TestBookingsCreateConflictOnOverlapAcrossTypes(t *testing.T) {
 	shortID := insertEventType(t, db, 15)
 
 	code, raw := postBooking(t, router, bookingRequest{
-		EventTypeID: int64(longID), StartsAt: tomorrowAt(9, 0), GuestName: "Анна", GuestEmail: "anna@example.com",
+		EventTypeID: int64(longID), StartsAt: nextWorkdayAt(9, 0), GuestName: "Анна", GuestEmail: "anna@example.com",
 	})
 	if code != http.StatusCreated {
 		t.Fatalf("первая запись: ожидался статус %d, получен %d, тело: %s", http.StatusCreated, code, raw)
 	}
 
 	code, raw = postBooking(t, router, bookingRequest{
-		EventTypeID: int64(shortID), StartsAt: tomorrowAt(9, 15), GuestName: "Борис", GuestEmail: "boris@example.com",
+		EventTypeID: int64(shortID), StartsAt: nextWorkdayAt(9, 15), GuestName: "Борис", GuestEmail: "boris@example.com",
 	})
 	if code != http.StatusConflict {
 		t.Fatalf("пересечение: ожидался статус %d, получен %d, тело: %s", http.StatusConflict, code, raw)
@@ -238,7 +259,7 @@ func TestBookingsCreateAllowsAdjacentSlots(t *testing.T) {
 	longID := insertEventType(t, db, 30)
 
 	code, raw := postBooking(t, router, bookingRequest{
-		EventTypeID: int64(shortID), StartsAt: tomorrowAt(9, 0), GuestName: "Анна", GuestEmail: "anna@example.com",
+		EventTypeID: int64(shortID), StartsAt: nextWorkdayAt(9, 0), GuestName: "Анна", GuestEmail: "anna@example.com",
 	})
 	if code != http.StatusCreated {
 		t.Fatalf("первая запись: ожидался статус %d, получен %d, тело: %s", http.StatusCreated, code, raw)
@@ -246,7 +267,7 @@ func TestBookingsCreateAllowsAdjacentSlots(t *testing.T) {
 
 	// [09:15, 09:45) встык к [09:00, 09:15) — пересечения нет.
 	code, raw = postBooking(t, router, bookingRequest{
-		EventTypeID: int64(longID), StartsAt: tomorrowAt(9, 15), GuestName: "Борис", GuestEmail: "boris@example.com",
+		EventTypeID: int64(longID), StartsAt: nextWorkdayAt(9, 15), GuestName: "Борис", GuestEmail: "boris@example.com",
 	})
 	if code != http.StatusCreated {
 		t.Fatalf("соседняя запись: ожидался статус %d, получен %d, тело: %s", http.StatusCreated, code, raw)
@@ -254,7 +275,7 @@ func TestBookingsCreateAllowsAdjacentSlots(t *testing.T) {
 
 	// Старт 09:15 уже занят записью [09:15, 09:45).
 	code, raw = postBooking(t, router, bookingRequest{
-		EventTypeID: int64(shortID), StartsAt: tomorrowAt(9, 15), GuestName: "Вера", GuestEmail: "vera@example.com",
+		EventTypeID: int64(shortID), StartsAt: nextWorkdayAt(9, 15), GuestName: "Вера", GuestEmail: "vera@example.com",
 	})
 	if code != http.StatusConflict {
 		t.Fatalf("повтор слота: ожидался статус %d, получен %d, тело: %s", http.StatusConflict, code, raw)

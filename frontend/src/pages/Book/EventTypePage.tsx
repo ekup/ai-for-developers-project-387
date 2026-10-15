@@ -20,7 +20,7 @@ import {
 import type { Booking, BookingWindow, EventType } from '../../api/client'
 import { bookingsCreate, bookingsWindow, eventTypesList, eventTypesSlots } from '../../api/client'
 import { DateCalendar } from './DateCalendar'
-import { dateRange, formatSlotDateLabel, formatSlotTime } from './dates'
+import { dateRange, formatSlotDateLabel, formatSlotTime, isWeekend } from './dates'
 import { formatDuration } from './duration'
 
 // slotsResult хранит ответ на запрос слотов вместе с датой, к которой он
@@ -33,8 +33,8 @@ type SlotsResult =
 type SubmitError = 'conflict' | 'other'
 
 /**
- * Страница типа события для гостя: календарь в пределах окна записи, свободные
- * слоты выбранной даты, форма записи и подтверждение созданной записи.
+ * Страница типа события для гостя: календарь будних дней в пределах окна записи,
+ * свободные слоты выбранной даты, форма записи и подтверждение созданной записи.
  *
  * Окно записи приходит с сервера, поэтому «сегодня» и последний доступный
  * день не зависят от часов браузера.
@@ -118,7 +118,10 @@ export function EventTypePage() {
   }, [])
 
   const eventType = eventTypes?.find((item) => item.id === eventTypeId) ?? null
-  const dates = useMemo(() => (window ? dateRange(window.start, window.end) : []), [window])
+  const dates = useMemo(
+    () => (window ? dateRange(window.start, window.end).filter((date) => !isWeekend(date)) : []),
+    [window],
+  )
   const selectedDate = selected ?? dates[0] ?? null
 
   useEffect(() => {

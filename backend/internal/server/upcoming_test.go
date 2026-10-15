@@ -52,9 +52,9 @@ func TestBookingsUpcomingReturnsFutureSortedByStart(t *testing.T) {
 	id := insertEventType(t, db, 30)
 
 	// Записи вставляются вразнобой — победить их должен порядок по началу.
-	insertBooking(t, db, id, tomorrowAt(15, 30), "Вера", "vera@example.com", "")
-	insertBooking(t, db, id, tomorrowAt(9, 0), "Анна", "anna@example.com", "Позвоните заранее")
-	insertBooking(t, db, id, tomorrowAt(11, 15), "Борис", "boris@example.com", "")
+	insertBooking(t, db, id, nextWorkdayAt(15, 30), "Вера", "vera@example.com", "")
+	insertBooking(t, db, id, nextWorkdayAt(9, 0), "Анна", "anna@example.com", "Позвоните заранее")
+	insertBooking(t, db, id, nextWorkdayAt(11, 15), "Борис", "boris@example.com", "")
 
 	bookings := getUpcoming(t, router)
 
@@ -87,8 +87,8 @@ func TestBookingsUpcomingHidesPast(t *testing.T) {
 	router, db := newSeededRouter(t)
 	id := insertEventType(t, db, 15)
 
-	insertBooking(t, db, id, tomorrowAt(9, 0).AddDate(0, 0, -2), "Прошлая", "past@example.com", "")
-	insertBooking(t, db, id, tomorrowAt(9, 0), "Предстоящая", "future@example.com", "")
+	insertBooking(t, db, id, nextWorkdayAt(9, 0).AddDate(0, 0, -2), "Прошлая", "past@example.com", "")
+	insertBooking(t, db, id, nextWorkdayAt(9, 0), "Предстоящая", "future@example.com", "")
 
 	bookings := getUpcoming(t, router)
 
@@ -105,7 +105,7 @@ func TestBookingsUpcomingHidesPast(t *testing.T) {
 func TestBookingsUpcomingKeepsSoftDeletedTypeBookings(t *testing.T) {
 	router, db := newSeededRouter(t)
 	id := insertEventType(t, db, 15)
-	insertBooking(t, db, id, tomorrowAt(9, 0), "Анна", "anna@example.com", "")
+	insertBooking(t, db, id, nextWorkdayAt(9, 0), "Анна", "anna@example.com", "")
 
 	if _, err := db.Exec(`UPDATE event_types SET deleted_at = datetime('now') WHERE id = ?`, id); err != nil {
 		t.Fatalf("мягко удалить тип события: %v", err)

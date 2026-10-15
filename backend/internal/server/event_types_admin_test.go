@@ -215,7 +215,7 @@ func TestEventTypesRemoveSoftDeletes(t *testing.T) {
 
 	code, raw := postBooking(t, router, bookingRequest{
 		EventTypeID: int64(id),
-		StartsAt:    tomorrowAt(9, 0),
+		StartsAt:    nextWorkdayAt(9, 0),
 		GuestName:   "Анна",
 		GuestEmail:  "anna@example.com",
 	})

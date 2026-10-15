@@ -55,6 +55,12 @@ export function dateRange(startISO: string, endISO: string): string[] {
   return dates
 }
 
+/** isWeekend сообщает, что дата — суббота или воскресенье. */
+export function isWeekend(iso: string): boolean {
+  const day = parseISODate(iso).getDay()
+  return day === 0 || day === 6
+}
+
 /** formatDateLabel возвращает подпись даты, например «13 октября, вт». */
 export function formatDateLabel(iso: string): string {
   const date = parseISODate(iso)
