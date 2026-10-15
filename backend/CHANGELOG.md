@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.4.0](https://github.com/ekup/ai-for-developers-project-387/compare/backend/v0.3.0...backend/v0.4.0) (2026-10-15)
+
+
+### Features
+
+* отмена записи владельцем ([8dfc27d](https://github.com/ekup/ai-for-developers-project-387/commit/8dfc27db27c7ac941ffab756f05dfcd45c2081da))
+* отмена записи владельцем ([384ef4d](https://github.com/ekup/ai-for-developers-project-387/commit/384ef4d305e15e1aad24c45d6a2b197a69a4f278))
+
 ## [0.3.0](https://github.com/ekup/ai-for-developers-project-386/compare/backend/v0.2.0...backend/v0.3.0) (2026-10-12)
 
 
