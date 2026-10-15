@@ -13,7 +13,10 @@ jobs:
     permissions:
       id-token: write
       contents: read
-      pull-requests: read
+      # Комментарии и реакции в разговоре PR проверяются по праву pull-requests,
+      # а не issues, поэтому без write здесь экшен падает с 403
+      # «Resource not accessible by integration».
+      pull-requests: write
       issues: write
     steps:
       - uses: actions/checkout@v6
