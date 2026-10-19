@@ -1,0 +1,26 @@
+# Blueprint прода: https://render.com/docs/blueprint-spec
+#
+# Один web-сервис, который собирается из корневого Dockerfile и раздаёт API и
+# статику фронтенда. Compute-план free: файловая система эфемерная, база SQLite
+# пересоздаётся при каждом редеплое и спин-дауне — см. README, раздел «Прод».
+#
+# Текущий сервис создан вручную в Render Dashboard и уже живёт по адресу
+# https://ai-for-developers-project-387-krp5.onrender.com. Блюпринт описывает ту
+# же конфигурацию для воспроизведения с нуля: применение через New → Blueprint
+# создаст НОВЫЙ сервис (и, возможно, другой субдомен), а не «усыновит» текущий.
+services:
+  - type: web
+    name: ai-for-developers-project-387
+    runtime: docker
+    region: frankfurt
+    branch: main
+    plan: free
+    # Деплой только после зелёных проверок ветки: в main летят и генерация API,
+    # и Docker-дымовой тест.
+    autoDeployTrigger: checksPass
+    healthCheckPath: /health
+    envVars:
+      # Пояс, в котором считаются рабочие часы и окно записи: docs/adr/0003.
+      # В образе есть tzdata, без этой переменной Go остался бы в UTC.
+      - key: TZ
+        value: Europe/Moscow

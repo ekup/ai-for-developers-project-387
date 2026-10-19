@@ -3,6 +3,8 @@
 
 [![hexlet-check](https://github.com/ekup/ai-for-developers-project-387/actions/workflows/hexlet-check.yml/badge.svg)](https://github.com/ekup/ai-for-developers-project-387/actions)
 
+**Приложение**: https://ai-for-developers-project-387-krp5.onrender.com — демо-прод на Render, данные не переживают рестарт (см. раздел [«Прод»](#прод)).
+
 Интегрируйте работу агентов в GitHub проект
 
 Учебный проект Хекслета: https://ru.hexlet.io/programs/ai-for-developers
@@ -35,8 +37,9 @@
 ├── frontend/           # Vite + React + Mantine
 │   └── src/            # лендинг, тесты и src/api (клиентский SDK)
 ├── api/                # контракт API на TypeSpec → OpenAPI (api/openapi/openapi.yaml)
-├── scripts/smoke.sh    # дымовой тест: поднять приложение и проверить ответ
+├── scripts/            # дымовые тесты: smoke.sh и docker-smoke.sh
 ├── Dockerfile          # мультистейдж: фронтенд + бэкенд в одном образе
+├── render.yaml         # прод-конфигурация Render (блюпринт)
 └── Makefile            # команды запуска, тестов и линтеров
 ```
 
@@ -131,6 +134,24 @@ docker run --rm -p 8080:8080 -v call-booking-data:/app/data call-booking:latest
 | `DATABASE_PATH` | `data/app.db` | путь к файлу SQLite                 |
 | `STATIC_DIR`    | `static`      | каталог со собранной статикой фронта |
 | `TZ`            | пояс хоста    | пояс записи: рабочие часы и окно записи считаются в нём. В проде и dev — `Europe/Moscow` (см. `docs/adr/0003`) |
+
+## Прод
+
+Прод живёт на [Render](https://render.com/): один web-сервис `ai-for-developers-project-387` в регионе Frankfurt, который собирается из корневого `Dockerfile` и раздаёт API и статику фронтенда. Пуш в `main` запускает деплой только после зелёных проверок ветки, а Render считает сервис живым, пока `/health` отвечает `200`.
+
+- приложение: https://ai-for-developers-project-387-krp5.onrender.com
+- здоровье: https://ai-for-developers-project-387-krp5.onrender.com/health
+
+Пояс записи в проде задан переменной `TZ=Europe/Moscow` (см. `docs/adr/0003`): в runtime-образ добавлен `tzdata`, поэтому рабочие часы и окно записи считаются по Москве, а не по UTC.
+
+Compute-план — `free`, поэтому это **демо-прод**:
+
+- файловая система эфемерная: база `app.db` стирается при каждом редеплое, рестарте и спин-дауне. Созданные типы событий и записи гостей не переживают даже 15 минут без трафика; схема и seed-типы пересоздаются при старте;
+- после спин-дауна первый запрос ждёт около минуты, пока сервис поднимается.
+
+Авторизации в сервисе нет (см. `docs/spec.md`, раздел 9), поэтому владельческие страницы закрыты от индексации в `frontend/public/robots.txt`, но остаются доступными по прямой ссылке.
+
+`render.yaml` описывает ту же конфигурацию, что и текущий сервис, но блюпринт не «усыновляет» сервис, созданный вручную в Dashboard. Применение через **New → Blueprint** создаст новый сервис и, вероятно, другой субдомен — это способ воспроизвести прод с нуля, а не обновить текущий.
 
 ## CI
 
