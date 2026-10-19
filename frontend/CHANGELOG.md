@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.1](https://github.com/ekup/ai-for-developers-project-387/compare/frontend-v0.5.0...frontend-v0.5.1) (2026-10-19)
+
+
+### Bug Fixes
+
+* шаг слотов 30 минут ([ea498dc](https://github.com/ekup/ai-for-developers-project-387/commit/ea498dc98da20ad9481b1c64232f2d19a4762efb))
+
 ## [0.5.0](https://github.com/ekup/ai-for-developers-project-387/compare/frontend-v0.4.0...frontend-v0.5.0) (2026-10-15)
 
 
