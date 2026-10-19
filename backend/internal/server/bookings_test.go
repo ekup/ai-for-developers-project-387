@@ -214,7 +214,7 @@ func TestBookingsCreateRejectsUnavailableTime(t *testing.T) {
 		{name: "вне окна записи", startsAt: tomorrowAt(9, 0).AddDate(0, 0, 14)},
 		{name: "до начала рабочего дня", startsAt: tomorrowAt(8, 45)},
 		{name: "не укладывается в рабочий день", startsAt: tomorrowAt(17, 50)},
-		{name: "не по сетке слотов", startsAt: tomorrowAt(9, 7)},
+		{name: "не по сетке слотов", startsAt: tomorrowAt(9, 15)},
 		{name: "в выходной день", startsAt: weekendAt(9, 0)},
 	}
 
@@ -234,8 +234,8 @@ func TestBookingsCreateRejectsUnavailableTime(t *testing.T) {
 // пересечении интервалов записей разных типов событий.
 func TestBookingsCreateConflictOnOverlapAcrossTypes(t *testing.T) {
 	router, db := newSeededRouter(t)
-	longID := insertEventType(t, db, 30)
-	shortID := insertEventType(t, db, 15)
+	longID := insertEventType(t, db, 45)
+	shortID := insertEventType(t, db, 30)
 
 	code, raw := postBooking(t, router, bookingRequest{
 		EventTypeID: int64(longID), StartsAt: tomorrowAt(9, 0), GuestName: "Анна", GuestEmail: "anna@example.com",
@@ -244,8 +244,9 @@ func TestBookingsCreateConflictOnOverlapAcrossTypes(t *testing.T) {
 		t.Fatalf("первая запись: ожидался статус %d, получен %d, тело: %s", http.StatusCreated, code, raw)
 	}
 
+	// [09:30, 10:00) пересекается с [09:00, 09:45).
 	code, raw = postBooking(t, router, bookingRequest{
-		EventTypeID: int64(shortID), StartsAt: tomorrowAt(9, 15), GuestName: "Борис", GuestEmail: "boris@example.com",
+		EventTypeID: int64(shortID), StartsAt: tomorrowAt(9, 30), GuestName: "Борис", GuestEmail: "boris@example.com",
 	})
 	if code != http.StatusConflict {
 		t.Fatalf("пересечение: ожидался статус %d, получен %d, тело: %s", http.StatusConflict, code, raw)
@@ -257,27 +258,27 @@ func TestBookingsCreateConflictOnOverlapAcrossTypes(t *testing.T) {
 // время занято и для повторной записи.
 func TestBookingsCreateAllowsAdjacentSlots(t *testing.T) {
 	router, db := newSeededRouter(t)
-	shortID := insertEventType(t, db, 15)
 	longID := insertEventType(t, db, 30)
+	shortID := insertEventType(t, db, 15)
 
 	code, raw := postBooking(t, router, bookingRequest{
-		EventTypeID: int64(shortID), StartsAt: tomorrowAt(9, 0), GuestName: "Анна", GuestEmail: "anna@example.com",
+		EventTypeID: int64(longID), StartsAt: tomorrowAt(9, 0), GuestName: "Анна", GuestEmail: "anna@example.com",
 	})
 	if code != http.StatusCreated {
 		t.Fatalf("первая запись: ожидался статус %d, получен %d, тело: %s", http.StatusCreated, code, raw)
 	}
 
-	// [09:15, 09:45) встык к [09:00, 09:15) — пересечения нет.
+	// [09:30, 09:45) встык к [09:00, 09:30) — пересечения нет.
 	code, raw = postBooking(t, router, bookingRequest{
-		EventTypeID: int64(longID), StartsAt: tomorrowAt(9, 15), GuestName: "Борис", GuestEmail: "boris@example.com",
+		EventTypeID: int64(shortID), StartsAt: tomorrowAt(9, 30), GuestName: "Борис", GuestEmail: "boris@example.com",
 	})
 	if code != http.StatusCreated {
 		t.Fatalf("соседняя запись: ожидался статус %d, получен %d, тело: %s", http.StatusCreated, code, raw)
 	}
 
-	// Старт 09:15 уже занят записью [09:15, 09:45).
+	// Старт 09:30 уже занят записью [09:30, 09:45).
 	code, raw = postBooking(t, router, bookingRequest{
-		EventTypeID: int64(shortID), StartsAt: tomorrowAt(9, 15), GuestName: "Вера", GuestEmail: "vera@example.com",
+		EventTypeID: int64(shortID), StartsAt: tomorrowAt(9, 30), GuestName: "Вера", GuestEmail: "vera@example.com",
 	})
 	if code != http.StatusConflict {
 		t.Fatalf("повтор слота: ожидался статус %d, получен %d, тело: %s", http.StatusConflict, code, raw)
