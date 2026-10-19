@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.2](https://github.com/ekup/ai-for-developers-project-387/compare/backend/v0.4.1...backend/v0.4.2) (2026-10-19)
+
+
+### Bug Fixes
+
+* шаг слотов 30 минут ([ea498dc](https://github.com/ekup/ai-for-developers-project-387/commit/ea498dc98da20ad9481b1c64232f2d19a4762efb))
+
 ## [0.4.1](https://github.com/ekup/ai-for-developers-project-387/compare/backend/v0.4.0...backend/v0.4.1) (2026-10-15)
 
 
