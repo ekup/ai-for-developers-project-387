@@ -29,39 +29,30 @@
 
 ## Требования и готчи
 
-- `staticcheck` не ставится через `make install`. Нужен в `PATH`: `go install honnef.co/go/tools/cmd/staticcheck@latest`. CI пинит версию `v0.8.2` — для воспроизведения CI ставьте её же.
-- `make dev-backend` подставляет `STATIC_DIR=../frontend/dist`, который существует только после сборки фронтенда. В dev это ок: UI отдаёт Vite, `/api` проксируется на бэкенд.
+- `staticcheck` не ставится через `make install`. Нужен в `PATH`: `go install honnef.co/go/tools/cmd/staticcheck@latest`; CI пинит `v0.8.2`.
+- `make dev-backend` подставляет `STATIC_DIR=../frontend/dist`, который существует только после сборки фронтенда. В dev UI отдаёт Vite, `/api` проксируется на бэкенд.
 - Конфиг из окружения: `HOST` (0.0.0.0), `PORT` (8080), `DATABASE_PATH` (`data/app.db`, каталог создаётся автоматически), `STATIC_DIR` (`static`).
-- SQLite — `modernc.org/sqlite` (чистый Go, без cgo), сборка с `CGO_ENABLED=0`. Соединение ограничено `MaxOpenConns(1)`.
-- `.github/workflows/hexlet-check.yml` автогенерируется: **не удалять/не редактировать**, репозиторий не переименовывать — иначе автотесты Хекслета сломаются. Также не трогать `.github/workflows/README.md`.
-- В CI у агента нет интерактивного клиента, поэтому **любой запрос разрешения opencode (`ask`) — это бесконечное ожидание**: так завис «Manual OpenCode Task» #38730818410 на 34 минуты (агент полез искать креды `gh` в `~/.config/gh/hosts.yml`, потому что токена не было). Поэтому: `opencode.json` в корне разрешает внешний каталог `~/.config/gh/*`; в `opencode-scheduled.yml` и `opencode-workflow-dispatch.yml` пробрасываются `GITHUB_TOKEN` и `use_github_token: true` (как в `opencode-review.yml`); у всех `opencode-*.yml` стоит `timeout-minutes` — 30 у `opencode.yml`, 15 у остальных, чтобы такое ожидание падало, а не висело до дефолтных 6 часов.
-- У воркфлоу агентов (`opencode*.yml`) есть условие, отсекающее события от ботов и от самого приложения OpenCode (логины на `[bot]`); в публичном репозитории звать агента командой могут только `OWNER`/`MEMBER`/`COLLABORATOR`. Команды заданы явно (`mentions: "/oc,/opencode"`), `share: false` не даёт публиковать сессии, а `permissions` выданы по воркфлоу и на запись — только там, где создаются коммиты, задачи или PR. Таблица воркфлоу, прав и решение по share — в README.
+- SQLite — `modernc.org/sqlite` (чистый Go, без cgo), сборка с `CGO_ENABLED=0`, `MaxOpenConns(1)`.
+- `.github/workflows/hexlet-check.yml` автогенерируется: **не удалять/не редактировать**, репозиторий не переименовывать. Также не трогать `.github/workflows/README.md`.
+- В CI у агента нет интерактивного клиента: **любой запрос разрешения opencode (`ask`) — это бесконечное ожидание**. Работай с `GITHUB_TOKEN`; настройка воркфлоу — в [`docs/agents/opencode.md`](docs/agents/opencode.md).
 
 ## Релизы
 
-- `.github/workflows/release-please.yml` — release-please читает Conventional Commits, обновляет `CHANGELOG.md` и версии, держит release-PR; после мержа PR создаёт теги и GitHub Releases.
-- Конфиг — `release-please-config.json`, текущие версии — `.release-please-manifest.json`. Релизы раздельные: бэкенд `backend/vX.Y.Z`, фронтенд `frontend-vX.Y.Z`.
-- Версии растут по SemVer: `feat` → minor, `fix` → patch, `!`/`BREAKING CHANGE` → minor (пока `0.x` из-за `bump-minor-pre-major`).
+- `.github/workflows/release-please.yml` читает Conventional Commits, обновляет `CHANGELOG.md` и версии, держит release-PR; после мержа создаёт теги и GitHub Releases.
+- Конфиг — `release-please-config.json`, версии — `.release-please-manifest.json`. Релизы раздельные: `backend/vX.Y.Z` и `frontend-vX.Y.Z`.
+- SemVer: `feat` → minor, `fix` → patch, `!`/`BREAKING CHANGE` → minor (пока `0.x` из-за `bump-minor-pre-major`).
 
 ## Конвенции
 
 - Комментарии, документация и UI-текст — на русском; идентификаторы в коде — на английском.
-- Сообщения коммитов — строго по [Conventional Commits](https://www.conventionalcommits.org/): `<type>[optional scope]: <description>`, где `type` — один из `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `build`, `ci`, `chore`, `revert`. Пример: `feat: каркас приложения`. Описание — на русском, в императиве, без заглавной буквы в начале и без точки в конце. Ломающие изменения помечать `!` и/или `BREAKING CHANGE:` в теле.
-- В GitHub-агенте (`.github/workflows/opencode.yml`) коммить работу сам. Экшен `anomalyco/opencode/github` коммитит только то, что осталось в рабочем дереве, а сообщение для своего коммита берёт из служебного «summarize the following in less than 40 characters» — то есть из короткого резюме ответа, без типа; release-please такие коммиты игнорирует. При этом агентский коммит экшен пушит и оформляет в PR сам (`branchIsDirty` → `uncommittedChanges: false`), поэтому: оставайся на текущей ветке, закоммить **все** изменения одним сообщением по Conventional Commits, сам не пушь и PR не заводи — иначе экшен посчитает, что ветку ведёт агент, и не создаст PR.
-- `subject` последнего коммита ветки шаг «Нормализовать заголовок PR» переносит в заголовок PR, так что от формата зависит и он (важно для squash-мержа).
+- Сообщения коммитов — строго по [Conventional Commits](https://www.conventionalcommits.org/): `<type>[optional scope]: <description>`, где `type` — один из `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `build`, `ci`, `chore`, `revert`. Описание — на русском, в императиве, без заглавной буквы и точки в конце. Ломающие изменения — `!` и/или `BREAKING CHANGE:` в теле.
+- `subject` последнего коммита ветки переносится в заголовок PR (важно для squash-мержа).
+- В GitHub-агенте (`.github/workflows/opencode.yml`) оставайся на текущей ветке, закоммить **все** изменения одним Conventional-коммитом, сам не пушь и PR не заводи. Детали — в [`docs/agents/opencode.md`](docs/agents/opencode.md).
 - Тесты лежат рядом с кодом: `*_test.go`, `*.test.tsx`.
 - TS строгий, с `noUnusedLocals`/`noUnusedParameters` — неиспользуемые переменные валят сборку.
 
 ## Agent skills
 
-### Issue tracker
-
-Issues live in this repo's GitHub Issues (via the `gh` CLI). See `docs/agents/issue-tracker.md`.
-
-### Triage labels
-
-The five canonical triage roles map 1:1 to their label strings. See `docs/agents/triage-labels.md`.
-
-### Domain docs
-
-Single-context: `GLOSSARY.md` + `docs/adr/` at the repo root. See `docs/agents/domain.md`.
+- Issue tracker — GitHub Issues через `gh` CLI: `docs/agents/issue-tracker.md`.
+- Triage labels — пять канонических ролей: `docs/agents/triage-labels.md`.
+- Domain docs — `GLOSSARY.md` + `docs/adr/`: `docs/agents/domain.md`.
