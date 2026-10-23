@@ -24,8 +24,10 @@ jobs:
     # а не будет ждать дефолтные 6 часов (см. AGENTS.md).
     timeout-minutes: 15
     # Произвольная задача может дойти до коммита, PR и issue, поэтому write
-    # нужен во всех трёх областях. OIDC не нужен: работаем через GITHUB_TOKEN.
+    # нужен во всех трёх областях; id-token: write — требование задания.
+    # Работаем через GITHUB_TOKEN (use_github_token: true).
     permissions:
+      id-token: write
       contents: write
       pull-requests: write
       issues: write

@@ -174,7 +174,7 @@ GitHub Actions (`.github/workflows/ci.yml`) на каждый push и pull reque
 | [`opencode.yml`](.github/workflows/opencode.yml)                     | комментарий с `/oc` или `/opencode` (`issue_comment`, `pull_request_review_comment`)           | `opencode-go/deepseek-v4.1-flash`  | правит код по задаче из комментария, коммитит и открывает PR    | [Actions → opencode](https://github.com/ekup/ai-for-developers-project-387/actions/workflows/opencode.yml)             |
 | [`opencode-review.yml`](.github/workflows/opencode-review.yml)       | `pull_request`: opened, synchronize, reopened, ready_for_review                                | `opencode-go/deepseek-v4.1-flash`  | ревью диффа PR и предложения по улучшениям                      | [Actions → opencode-review](https://github.com/ekup/ai-for-developers-project-387/actions/workflows/opencode-review.yml) |
 | [`opencode-triage.yml`](.github/workflows/opencode-triage.yml)       | `issues`: opened (автор старше 30 дней)                                                        | `opencode-go/deepseek-v4.1-flash`  | подсказки по issue: ссылки на доки, обработка ошибок            | [Actions → Issue Triage](https://github.com/ekup/ai-for-developers-project-387/actions/workflows/opencode-triage.yml)     |
-| [`opencode-scheduled.yml`](.github/workflows/opencode-scheduled.yml) | расписание: понедельник 09:00 UTC                                                              | `opencode-go/deepseek-v4.1-flash`  | обзор `TODO`/`FIXME`/`HACK` и заведение issue с отчётом         | [Actions → Scheduled OpenCode Task](https://github.com/ekup/ai-for-developers-project-387/actions/workflows/opencode-scheduled.yml) |
+| [`opencode-scheduled.yml`](.github/workflows/opencode-scheduled.yml) | расписание: понедельник 09:00 UTC; `workflow_dispatch`: ручной запуск                          | `opencode-go/deepseek-v4.1-flash`  | обзор `TODO`/`FIXME`/`HACK` и заведение issue с отчётом         | [Actions → Scheduled OpenCode Task](https://github.com/ekup/ai-for-developers-project-387/actions/workflows/opencode-scheduled.yml) |
 | [`opencode-workflow-dispatch.yml`](.github/workflows/opencode-workflow-dispatch.yml) | `workflow_dispatch`: ручной запуск                                             | `opencode-go/deepseek-v4.1-flash` (переопределяется полем `model`) | произвольная задача из поля `prompt`            | [Actions → Manual OpenCode Task](https://github.com/ekup/ai-for-developers-project-387/actions/workflows/opencode-workflow-dispatch.yml) |
 
 ### Команды вызова и доступ
@@ -182,19 +182,19 @@ GitHub Actions (`.github/workflows/ci.yml`) на каждый push и pull reque
 - Агента зовут комментарием, начинающимся с `/oc` или `/opencode` (либо этими же словами через пробел в середине текста). Набор задан явно через `mentions: "/oc,/opencode"` в `opencode.yml` — это дефолт экшена, он оставлен, чтобы не ломать уже написанные команды.
 - Воркфлоу не срабатывает на каждый комментарий подряд: без команды в теле job пропускается (в списке прогонов это видно как `skipped`).
 - События от ботов и от самого приложения OpenCode (его логины заканчиваются на `[bot]`) отсекаются условием `!endsWith(github.actor, '[bot]')` и `user.type != 'Bot'` во всех пяти воркфлоу.
-- Репозиторий публичный, поэтому звать агента командой могут только `OWNER`, `MEMBER` и `COLLABORATOR` (проверка `author_association`). Ручной запуск (`workflow_dispatch`) и так доступен лишь пользователям с правом записи, в нём дополнительно проверяется, что запуск идёт не из форка.
+- Репозиторий публичный, поэтому звать агента командой могут только `OWNER`, `MEMBER` и `COLLABORATOR` (проверка `author_association`). Ручные запуски (`workflow_dispatch`) и так доступны лишь пользователям с правом записи: в `opencode-scheduled.yml` по кнопке запускается тот же обзор `TODO`/`FIXME`/`HACK`, в `opencode-workflow-dispatch.yml` — произвольная задача из поля `prompt`. В обоих воркфлоу дополнительно проверяется, что запуск идёт не из форка.
 
 ### Права
 
-`permissions` объявлены отдельно в каждом воркфлоу, `write` — только там, где агент создаёт коммиты, задачи или PR:
+`permissions` объявлены отдельно в каждом воркфлоу. `write` выдаётся там, где агент создаёт коммиты, задачи или PR; у `opencode-scheduled.yml` набор расширен по требованию учебного задания:
 
 | Воркфлоу                        | `permissions`                                                              | Почему так                                                                                          |
 | ------------------------------- | -------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
 | `opencode.yml`                  | `id-token: write`, `contents: read`, `pull-requests: write`                | коммиты и PR создаёт токен приложения OpenCode (обмен OIDC); `pull-requests: write` нужен шагу «Нормализовать заголовок PR» |
-| `opencode-review.yml`           | `contents: read`, `pull-requests: write`                                   | `use_github_token: true` — OIDC не нужен; комментарии в разговоре PR требуют прав именно на `pull-requests` |
+| `opencode-review.yml`           | `id-token: write`, `contents: read`, `pull-requests: write`                | `id-token` — требование учебного задания; при `use_github_token: true` OIDC фактически не используется, а комментарии в разговоре PR требуют прав именно на `pull-requests` |
 | `opencode-triage.yml`           | `id-token: write`, `contents: read`                                        | комментарий создаёт токен приложения (OIDC), воркфлоу на запись ничего не просит                    |
-| `opencode-scheduled.yml`        | `contents: read`, `issues: write`                                          | задача заводит issue через `gh` с `GITHUB_TOKEN`; коммитов и PR нет                                  |
-| `opencode-workflow-dispatch.yml`| `contents: write`, `pull-requests: write`, `issues: write`                 | произвольная задача может дойти до коммита, PR и issue                                              |
+| `opencode-scheduled.yml`        | `id-token: write`, `contents: write`, `pull-requests: write`, `issues: write` | требование учебного задания: `id-token` и write в трёх областях; текущий промпт заводит только issue |
+| `opencode-workflow-dispatch.yml`| `id-token: write`, `contents: write`, `pull-requests: write`, `issues: write` | произвольная задача может дойти до коммита, PR и issue; `id-token` — требование задания             |
 
 ### Share
 

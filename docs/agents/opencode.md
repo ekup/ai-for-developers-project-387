@@ -9,7 +9,7 @@
 - `opencode.yml` — команда `/oc` или `/opencode` в комментарии к issue/PR: правит код, коммитит и открывает PR.
 - `opencode-review.yml` — ревью диффа PR.
 - `opencode-triage.yml` — подсказки по новым issue.
-- `opencode-scheduled.yml` — недельный обзор `TODO`/`FIXME`/`HACK` с заведением issue.
+- `opencode-scheduled.yml` — недельный обзор `TODO`/`FIXME`/`HACK` с заведением issue плюс ручной запуск того же обзора.
 - `opencode-workflow-dispatch.yml` — ручной запуск с произвольным промптом.
 
 Модель у всех одна: `opencode-go/deepseek-v4.1-flash` (провайдер `opencode-go`, секрет `OPENCODE_API_KEY`).
@@ -42,4 +42,4 @@
 - Репозиторий публичный: звать агента командой могут только `OWNER`, `MEMBER` и `COLLABORATOR`, а ручной запуск дополнительно проверяет, что он не из форка.
 - Команды заданы явно через `mentions: "/oc,/opencode"`.
 - `share: false` во всех воркфлоу: сессии агента наружу не публикуются.
-- `permissions` выданы по воркфлоу, `write` — только там, где создаются коммиты, задачи или PR.
+- `permissions` выданы по воркфлоу, `write` — там, где создаются коммиты, задачи или PR. `id-token: write` есть во всех воркфлоу по требованию учебного задания, хотя при `use_github_token: true` обмен OIDC фактически не выполняется; у `opencode-scheduled.yml` дополнительно три write-права по тому же требованию.

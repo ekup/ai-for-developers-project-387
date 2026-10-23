@@ -16,10 +16,12 @@ jobs:
     # Страховка от зависания на запросе разрешения, которого в Actions никто
     # не подтвердит (см. AGENTS.md): падаем по таймауту, а не ждём 6 часов.
     timeout-minutes: 15
-    # use_github_token: true — обмен OIDC не нужен. Комментарии и реакции в
-    # разговоре PR проверяются по праву pull-requests, а не issues, поэтому без
-    # write здесь экшен падает с 403 «Resource not accessible by integration».
+    # id-token: write — требование учебного задания; при use_github_token: true
+    # обмен OIDC фактически не выполняется. Комментарии и реакции в разговоре PR
+    # проверяются по праву pull-requests, а не issues, поэтому без write здесь
+    # экшен падает с 403 «Resource not accessible by integration».
     permissions:
+      id-token: write
       contents: read
       pull-requests: write
     steps:

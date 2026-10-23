@@ -3,11 +3,16 @@ name: Scheduled OpenCode Task
 on:
   schedule:
     - cron: "0 9 * * 1" # Every Monday at 9am UTC
+  # Ручной запуск того же обзора по кнопке: без входных параметров, промпт
+  # ниже фиксированный. Произвольные задачи — в opencode-workflow-dispatch.yml.
+  workflow_dispatch:
 
 jobs:
   opencode:
     # У schedule нет пользователя-инициатора, поэтому страхуемся от запуска в
-    # форке и от бот-аккаунтов (см. README).
+    # форке и от бот-аккаунтов (см. README). Ручной запуск и так доступен
+    # только пользователям с правом записи, а проверка репозитория отсекает
+    # запуск из форка.
     if: |
       github.repository == 'ekup/ai-for-developers-project-387' &&
       !endsWith(github.actor, '[bot]')
@@ -16,10 +21,13 @@ jobs:
     # которого в Actions никто не подтвердит, джоба упадёт по таймауту,
     # а не будет ждать дефолтные 6 часов (см. AGENTS.md).
     timeout-minutes: 15
-    # Задача заводит issue через gh с GITHUB_TOKEN (use_github_token: true),
-    # поэтому OIDC не нужен, а запись требуется только в issues.
+    # Требование учебного задания: ручной запуск, поэтому write во всех трёх
+    # областях и id-token: write. Текущий промпт заводит только issue, работа
+    # идёт через GITHUB_TOKEN (use_github_token: true).
     permissions:
-      contents: read
+      id-token: write
+      contents: write
+      pull-requests: write
       issues: write
     steps:
       - name: Checkout repository
