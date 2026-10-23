@@ -21,10 +21,11 @@ jobs:
     # которого в Actions никто не подтвердит, джоба упадёт по таймауту,
     # а не будет ждать дефолтные 6 часов (см. AGENTS.md).
     timeout-minutes: 15
-    # Требование учебного задания: у воркфлоу есть ручной запуск, поэтому
-    # задача может дойти до коммита и PR — write нужен во всех трёх областях.
-    # OIDC не нужен: работаем через GITHUB_TOKEN (use_github_token: true).
+    # Требование учебного задания: ручной запуск, поэтому write во всех трёх
+    # областях и id-token: write. Текущий промпт заводит только issue, работа
+    # идёт через GITHUB_TOKEN (use_github_token: true).
     permissions:
+      id-token: write
       contents: write
       pull-requests: write
       issues: write

@@ -191,10 +191,10 @@ GitHub Actions (`.github/workflows/ci.yml`) на каждый push и pull reque
 | Воркфлоу                        | `permissions`                                                              | Почему так                                                                                          |
 | ------------------------------- | -------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
 | `opencode.yml`                  | `id-token: write`, `contents: read`, `pull-requests: write`                | коммиты и PR создаёт токен приложения OpenCode (обмен OIDC); `pull-requests: write` нужен шагу «Нормализовать заголовок PR» |
-| `opencode-review.yml`           | `contents: read`, `pull-requests: write`                                   | `use_github_token: true` — OIDC не нужен; комментарии в разговоре PR требуют прав именно на `pull-requests` |
+| `opencode-review.yml`           | `id-token: write`, `contents: read`, `pull-requests: write`                | `id-token` — требование учебного задания; при `use_github_token: true` OIDC фактически не используется, а комментарии в разговоре PR требуют прав именно на `pull-requests` |
 | `opencode-triage.yml`           | `id-token: write`, `contents: read`                                        | комментарий создаёт токен приложения (OIDC), воркфлоу на запись ничего не просит                    |
-| `opencode-scheduled.yml`        | `contents: write`, `pull-requests: write`, `issues: write`                 | требование учебного задания: при ручном запуске задача может дойти до коммита и PR; OIDC не нужен    |
-| `opencode-workflow-dispatch.yml`| `contents: write`, `pull-requests: write`, `issues: write`                 | произвольная задача может дойти до коммита, PR и issue                                              |
+| `opencode-scheduled.yml`        | `id-token: write`, `contents: write`, `pull-requests: write`, `issues: write` | требование учебного задания: `id-token` и write в трёх областях; текущий промпт заводит только issue |
+| `opencode-workflow-dispatch.yml`| `id-token: write`, `contents: write`, `pull-requests: write`, `issues: write` | произвольная задача может дойти до коммита, PR и issue; `id-token` — требование задания             |
 
 ### Share
 
