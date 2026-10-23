@@ -20,7 +20,7 @@
 
 Поэтому:
 
-- `opencode.json` в корне разрешает внешний каталог `~/.config/gh/*`;
+- `opencode.json` в корне разрешает внешние каталоги `~/.config/gh/*` (креды `gh`) и `/home/runner/work/*/**` (родитель чекаута в Actions, куда агент попадает через `../`);
 - в `opencode-scheduled.yml` и `opencode-workflow-dispatch.yml` пробрасываются `GITHUB_TOKEN` и `use_github_token: true` (как в `opencode-review.yml`);
 - у всех `opencode-*.yml` стоит `timeout-minutes`: 30 у `opencode.yml`, 15 у остальных — чтобы зависание падало, а не висело до дефолтных 6 часов.
 
